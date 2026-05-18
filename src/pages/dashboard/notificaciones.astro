@@ -1,0 +1,112 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Notificaciones">
+  <div id="notifications-content"></div>
+</DashboardLayout>
+
+<script>
+  import { notificationApi } from '../../lib/api';
+  import { formatRelativeTime } from '../../lib/utils';
+
+  const container = document.getElementById('notifications-content');
+
+  async function loadNotifications() {
+    try {
+      const response = await notificationApi.list();
+      if (!response.success) throw new Error('Error');
+
+      const notifications = response.data.items;
+      const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+
+      container!.innerHTML = `
+        <div class="mb-8 flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Notificaciones</h1>
+            <p class="mt-1 text-gray-600">${unreadCount} sin leer</p>
+          </div>
+          ${unreadCount > 0 ? `
+            <button id="mark-all-read" class="text-sm text-primary-600 hover:text-primary-700">
+              Marcar todas como leídas
+            </button>
+          ` : ''}
+        </div>
+
+        ${notifications.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <p class="mt-4 text-gray-600">No tienes notificaciones</p>
+          </div>
+        ` : `
+          <div class="space-y-3">
+            ${notifications.map((notif: any) => `
+              <div class="notification-item bg-white rounded-xl border border-gray-200 p-4 flex items-start space-x-4 ${!notif.isRead ? 'border-l-4 border-l-primary-500' : ''}" data-id="${notif.id}">
+                <div class="p-2 bg-primary-100 rounded-lg flex-shrink-0">
+                  <svg class="h-5 w-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-gray-900">${notif.title}</p>
+                  <p class="mt-1 text-sm text-gray-600">${notif.body || ''}</p>
+                  <p class="mt-2 text-xs text-gray-400">${formatRelativeTime(notif.createdAt)}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                  ${!notif.isRead ? `
+                    <button class="mark-read p-1 text-gray-400 hover:text-primary-600" data-id="${notif.id}" title="Marcar como leída">
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                  ` : ''}
+                  <button class="delete-notif p-1 text-gray-400 hover:text-red-600" data-id="${notif.id}" title="Eliminar">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+
+      // Add handlers
+      document.getElementById('mark-all-read')?.addEventListener('click', async () => {
+        await notificationApi.markAllAsRead();
+        loadNotifications();
+      });
+
+      document.querySelectorAll('.mark-read').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) {
+            await notificationApi.markAsRead(id);
+            loadNotifications();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-notif').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) {
+            await notificationApi.delete(id);
+            loadNotifications();
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar las notificaciones</p>
+        </div>
+      `;
+    }
+  }
+
+  loadNotifications();
+</script>

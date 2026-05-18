@@ -1,0 +1,356 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mis Órdenes de Servicio">
+  <div id="client-orders-content"></div>
+</DashboardLayout>
+
+<script>
+  import { conversationApi, orderApi, reviewApi } from '../../../lib/api';
+  import { formatDate, formatCurrency } from '../../../lib/utils';
+
+  const container = document.getElementById('client-orders-content');
+  let currentPage = 1;
+  const pageSize = 10;
+  let currentStatus = '';
+
+  async function openApplicationConversation(applicationId: string) {
+    try {
+      const response = await conversationApi.getForApplication(applicationId);
+      if (response.success && response.data) {
+        window.location.href = `/dashboard/mensajes?conversationId=${response.data.id}`;
+        return;
+      }
+
+      alert('No se pudo abrir la conversación de esta orden');
+    } catch (error) {
+      alert('Error al abrir los mensajes');
+    }
+  }
+
+  async function loadOrders() {
+    try {
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('pageSize', pageSize.toString());
+      if (currentStatus) params.set('status', currentStatus);
+
+      const response = await orderApi.getClientOrders(params);
+      if (!response.success) throw new Error('Error');
+
+      const { items: orders, total, totalPages } = response.data;
+
+      const statusColors: Record<string, string> = {
+        active: 'bg-blue-100 text-blue-700',
+        completed: 'bg-green-100 text-green-700',
+        cancelled: 'bg-red-100 text-red-700',
+      };
+
+      const statusLabels: Record<string, string> = {
+        active: 'En progreso',
+        completed: 'Completada',
+        cancelled: 'Cancelada',
+      };
+
+      container!.innerHTML = `
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900">Mis Órdenes de Servicio</h1>
+          <p class="mt-1 text-gray-600">${total} órdenes en total</p>
+        </div>
+
+        <div class="mb-6">
+          <select id="status-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option value="">Todos los estados</option>
+            <option value="active" ${currentStatus === 'active' ? 'selected' : ''}>En progreso</option>
+            <option value="completed" ${currentStatus === 'completed' ? 'selected' : ''}>Completada</option>
+            <option value="cancelled" ${currentStatus === 'cancelled' ? 'selected' : ''}>Cancelada</option>
+          </select>
+        </div>
+
+        ${orders.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <p class="mt-4 text-gray-600">No tienes órdenes de servicio${currentStatus ? ` con estado "${statusLabels[currentStatus]}"` : ''}</p>
+            <a href="/dashboard/cliente/anuncios" class="mt-4 inline-block text-primary-600 hover:text-primary-700">
+              Ver tus anuncios
+            </a>
+          </div>
+        ` : `
+          <div class="space-y-4">
+            ${orders.map((order: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div class="p-6">
+                  <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-3 mb-3">
+                        <span class="text-sm text-gray-500">Orden #${order.id}</span>
+                        <span class="px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[order.status]}">
+                          ${statusLabels[order.status]}
+                        </span>
+                      </div>
+
+                      <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                        <a href="/anuncios/${order.application?.ad?.id}" class="hover:text-primary-600">
+                          ${order.application?.ad?.title || 'Anuncio'}
+                        </a>
+                      </h3>
+
+                      <div class="flex items-center gap-4 mb-4">
+                        <div class="flex items-center gap-3">
+                          <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-sm">
+                            ${order.professional?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '??'}
+                          </div>
+                          <div>
+                            <p class="font-medium text-gray-900">${order.professional?.fullName || 'Profesional'}</p>
+                            <a href="/profesionales/${order.professional?.id}" class="text-sm text-primary-600 hover:text-primary-700">
+                              Ver perfil
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="flex flex-wrap gap-4 text-sm text-gray-500">
+                        <span class="flex items-center gap-1">
+                          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          ${formatCurrency(order.agreedPrice)}
+                        </span>
+                        <span class="flex items-center gap-1">
+                          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Creada: ${formatDate(order.createdAt)}
+                        </span>
+                        ${order.completedAt ? `
+                          <span class="flex items-center gap-1 text-green-600">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Completada: ${formatDate(order.completedAt)}
+                          </span>
+                        ` : ''}
+                      </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                      ${order.status === 'active' ? `
+                        <button class="complete-order px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors" data-id="${order.id}">
+                          Marcar como completada
+                        </button>
+                        <button class="cancel-order px-4 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors" data-id="${order.id}">
+                          Cancelar orden
+                        </button>
+                      ` : order.status === 'completed' && !order.hasReviewed ? `
+                        <button class="leave-review px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors" data-order="${order.id}" data-professional="${order.professional?.id}">
+                          Dejar valoración
+                        </button>
+                      ` : order.hasReviewed ? `
+                        <span class="px-4 py-2 text-sm text-gray-500 bg-gray-100 rounded-lg">
+                          Valoración enviada
+                        </span>
+                      ` : ''}
+                      <button class="message-btn px-4 py-2 border border-gray-300 text-gray-700 text-sm text-center rounded-lg hover:bg-gray-50 transition-colors" data-app="${order.applicationId}">
+                        Ver mensajes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          ${totalPages > 1 ? `
+            <div class="mt-8 flex justify-center gap-2">
+              <button id="prev-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>
+                Anterior
+              </button>
+              <span class="px-4 py-2 text-gray-600">
+                Página ${currentPage} de ${totalPages}
+              </span>
+              <button id="next-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}>
+                Siguiente
+              </button>
+            </div>
+          ` : ''}
+        `}
+      `;
+
+      // Event handlers
+      document.getElementById('status-filter')?.addEventListener('change', (e) => {
+        currentStatus = (e.target as HTMLSelectElement).value;
+        currentPage = 1;
+        loadOrders();
+      });
+
+      document.getElementById('prev-page')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadOrders();
+        }
+      });
+
+      document.getElementById('next-page')?.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadOrders();
+        }
+      });
+
+      // Complete order
+      document.querySelectorAll('.complete-order').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id && confirm('¿Marcar esta orden como completada?')) {
+            try {
+              await orderApi.updateStatus(id, 'completed');
+              loadOrders();
+            } catch (error) {
+              alert('Error al completar la orden');
+            }
+          }
+        });
+      });
+
+      // Cancel order
+      document.querySelectorAll('.cancel-order').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id && confirm('¿Estás seguro de que quieres cancelar esta orden?')) {
+            try {
+              await orderApi.updateStatus(id, 'cancelled');
+              loadOrders();
+            } catch (error) {
+              alert('Error al cancelar la orden');
+            }
+          }
+        });
+      });
+
+      // Leave review
+      document.querySelectorAll('.leave-review').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const orderId = (btn as HTMLElement).dataset.order;
+          const professionalId = (btn as HTMLElement).dataset.professional;
+          showReviewModal(orderId!, professionalId!);
+        });
+      });
+
+      // Open the conversation tied to this order's application
+      document.querySelectorAll('.message-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const applicationId = (btn as HTMLElement).dataset.app;
+          if (applicationId) {
+            await openApplicationConversation(applicationId);
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar las órdenes</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  function showReviewModal(orderId: string, professionalId: string) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Dejar valoración</h3>
+        <form id="review-form">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Puntuación</label>
+            <div class="flex gap-2" id="star-rating">
+              ${[1, 2, 3, 4, 5].map((n) => `
+                <button type="button" class="star-btn text-3xl text-gray-300 hover:text-yellow-400 transition-colors" data-rating="${n}">★</button>
+              `).join('')}
+            </div>
+            <input type="hidden" name="rating" id="rating-input" value="0" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Comentario (opcional)</label>
+            <textarea name="comment" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Escribe tu opinión sobre el servicio..."></textarea>
+          </div>
+          <div class="flex gap-3">
+            <button type="button" id="cancel-review" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              Enviar valoración
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    let selectedRating = 0;
+
+    // Star rating interaction
+    modal.querySelectorAll('.star-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedRating = parseInt((btn as HTMLElement).dataset.rating!);
+        (document.getElementById('rating-input') as HTMLInputElement).value = selectedRating.toString();
+        modal.querySelectorAll('.star-btn').forEach((star, index) => {
+          if (index < selectedRating) {
+            star.classList.remove('text-gray-300');
+            star.classList.add('text-yellow-400');
+          } else {
+            star.classList.remove('text-yellow-400');
+            star.classList.add('text-gray-300');
+          }
+        });
+      });
+    });
+
+    // Cancel
+    modal.querySelector('#cancel-review')?.addEventListener('click', () => {
+      modal.remove();
+    });
+
+    // Submit review
+    modal.querySelector('#review-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (selectedRating === 0) {
+        alert('Por favor, selecciona una puntuación');
+        return;
+      }
+
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+
+      try {
+        await reviewApi.create({
+          orderId: parseInt(orderId),
+          reviewedUserId: parseInt(professionalId),
+          rating: selectedRating,
+          comment: formData.get('comment') || undefined,
+        });
+        modal.remove();
+        loadOrders();
+      } catch (error) {
+        alert('Error al enviar la valoración');
+      }
+    });
+
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  loadOrders();
+</script>

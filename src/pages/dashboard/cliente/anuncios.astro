@@ -1,0 +1,199 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mis Anuncios">
+  <div id="my-ads-content"></div>
+</DashboardLayout>
+
+<script>
+  import { adApi } from '../../../lib/api';
+  import { formatDate, formatCurrency } from '../../../lib/utils';
+
+  const container = document.getElementById('my-ads-content');
+  let currentPage = 1;
+  const pageSize = 10;
+  let currentStatus = '';
+
+  async function loadMyAds() {
+    try {
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('pageSize', pageSize.toString());
+      if (currentStatus) params.set('status', currentStatus);
+
+      const response = await adApi.getUserAds(params);
+      if (!response.success) throw new Error('Error');
+
+      const { items: ads, total, totalPages } = response.data;
+
+      const statusColors: Record<string, string> = {
+        draft: 'bg-gray-100 text-gray-700',
+        active: 'bg-green-100 text-green-700',
+        closed: 'bg-blue-100 text-blue-700',
+        cancelled: 'bg-red-100 text-red-700',
+      };
+
+      const statusLabels: Record<string, string> = {
+        draft: 'Borrador',
+        active: 'Activo',
+        closed: 'Cerrado',
+        cancelled: 'Cancelado',
+      };
+
+      container!.innerHTML = `
+        <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Mis Anuncios</h1>
+            <p class="mt-1 text-gray-600">${total} anuncios en total</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <select id="status-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <option value="">Todos los estados</option>
+              <option value="draft" ${currentStatus === 'draft' ? 'selected' : ''}>Borrador</option>
+              <option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Activo</option>
+              <option value="closed" ${currentStatus === 'closed' ? 'selected' : ''}>Cerrado</option>
+              <option value="cancelled" ${currentStatus === 'cancelled' ? 'selected' : ''}>Cancelado</option>
+            </select>
+            <a href="/dashboard/cliente/nuevo-anuncio" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+              + Nuevo Anuncio
+            </a>
+          </div>
+        </div>
+
+        ${ads.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            <p class="mt-4 text-gray-600">No tienes anuncios ${currentStatus ? `con estado "${statusLabels[currentStatus]}"` : ''}</p>
+            <a href="/dashboard/cliente/nuevo-anuncio" class="mt-4 inline-block text-primary-600 hover:text-primary-700">
+              Crear tu primer anuncio
+            </a>
+          </div>
+        ` : `
+          <div class="space-y-4">
+            ${ads.map((ad: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div class="flex-1">
+                    <div class="flex items-start gap-3">
+                      <a href="/anuncios/${ad.id}" class="text-lg font-semibold text-gray-900 hover:text-primary-600">
+                        ${ad.title}
+                      </a>
+                      <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[ad.status]}">
+                        ${statusLabels[ad.status]}
+                      </span>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">${ad.category?.name || 'Sin categoría'}</p>
+                    <p class="mt-2 text-gray-600 line-clamp-2">${ad.description}</p>
+                    <div class="mt-3 flex flex-wrap gap-4 text-sm text-gray-500">
+                      <span class="flex items-center gap-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        ${formatCurrency(ad.budgetMin)} - ${formatCurrency(ad.budgetMax)}
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        ${ad.location || 'Sin especificar'}
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        ${formatDate(ad.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <div class="text-center px-4 py-2 bg-gray-50 rounded-lg">
+                      <p class="text-2xl font-bold text-primary-600">${ad.applicationsCount || 0}</p>
+                      <p class="text-xs text-gray-500">Candidaturas</p>
+                    </div>
+                    <div class="flex gap-2">
+                      <a href="/dashboard/cliente/editar-anuncio/${ad.id}" class="flex-1 px-3 py-2 text-sm text-center text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                        Editar
+                      </a>
+                      <a href="/dashboard/cliente/candidaturas?adId=${ad.id}" class="flex-1 px-3 py-2 text-sm text-center text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+                        Ver
+                      </a>
+                    </div>
+                    ${ad.status === 'active' ? `
+                      <button class="close-ad px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" data-id="${ad.id}">
+                        Cerrar anuncio
+                      </button>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          ${totalPages > 1 ? `
+            <div class="mt-8 flex justify-center gap-2">
+              <button id="prev-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>
+                Anterior
+              </button>
+              <span class="px-4 py-2 text-gray-600">
+                Página ${currentPage} de ${totalPages}
+              </span>
+              <button id="next-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}>
+                Siguiente
+              </button>
+            </div>
+          ` : ''}
+        `}
+      `;
+
+      // Event handlers
+      document.getElementById('status-filter')?.addEventListener('change', (e) => {
+        currentStatus = (e.target as HTMLSelectElement).value;
+        currentPage = 1;
+        loadMyAds();
+      });
+
+      document.getElementById('prev-page')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadMyAds();
+        }
+      });
+
+      document.getElementById('next-page')?.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadMyAds();
+        }
+      });
+
+      document.querySelectorAll('.close-ad').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id && confirm('¿Estás seguro de que quieres cerrar este anuncio?')) {
+            try {
+              await adApi.update(id, { status: 'closed' });
+              loadMyAds();
+            } catch (error) {
+              alert('Error al cerrar el anuncio');
+            }
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar tus anuncios</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  loadMyAds();
+</script>

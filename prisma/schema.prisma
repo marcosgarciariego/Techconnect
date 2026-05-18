@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          BigInt     @id @default(autoincrement())
+  name        String     @unique @db.VarChar(50)
+  description String?    @db.VarChar(255)
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model User {
+  id           BigInt    @id @default(autoincrement())
+  fullName     String    @map("full_name") @db.VarChar(120)
+  email        String    @unique @db.VarChar(150)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  phone        String?   @db.VarChar(30)
+  city         String?   @db.VarChar(100)
+  avatarUrl    String?   @map("avatar_url") @db.Text
+  bio          String?   @db.Text
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  userRoles               UserRole[]
+  professionalProfile     ProfessionalProfile?
+  ads                     Ad[]
+  applications            Application[]
+  clientOrders            ServiceOrder[]        @relation("ClientOrders")
+  professionalOrders      ServiceOrder[]        @relation("ProfessionalOrders")
+  conversationParticipants ConversationParticipant[]
+  sentMessages            Message[]
+  favorites               Favorite[]
+  reviewsGiven            Review[]              @relation("ReviewsGiven")
+  reviewsReceived         Review[]              @relation("ReviewsReceived")
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+
+  @@map("users")
+}
+
+model UserRole {
+  userId     BigInt   @map("user_id")
+  roleId     BigInt   @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model ProfessionalProfile {
+  id              BigInt   @id @default(autoincrement())
+  userId          BigInt   @unique @map("user_id")
+  description     String?  @db.Text
+  yearsExperience Int?     @map("years_experience")
+  hourlyRate      Decimal? @map("hourly_rate") @db.Decimal(10, 2)
+  portfolioUrl    String?  @map("portfolio_url") @db.Text
+  availability    String?  @db.VarChar(50)
+  verified        Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("professional_profiles")
+}
+
+model Category {
+  id          BigInt  @id @default(autoincrement())
+  name        String  @unique @db.VarChar(100)
+  description String? @db.VarChar(255)
+  ads         Ad[]
+
+  @@map("categories")
+}
+
+model Ad {
+  id          BigInt     @id @default(autoincrement())
+  userId      BigInt     @map("user_id")
+  categoryId  BigInt     @map("category_id")
+  title       String     @db.VarChar(150)
+  description String     @db.Text
+  budgetMin   Decimal?   @map("budget_min") @db.Decimal(10, 2)
+  budgetMax   Decimal?   @map("budget_max") @db.Decimal(10, 2)
+  modality    String     @db.VarChar(20)
+  location    String?    @db.VarChar(150)
+  status      String     @default("active") @db.VarChar(20)
+  publishedAt DateTime?  @default(now()) @map("published_at")
+  expiresAt   DateTime?  @map("expires_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images       AdImage[]
+  applications Application[]
+  conversations Conversation[]
+  favorites    Favorite[]
+
+  @@index([userId], map: "idx_ads_user_id")
+  @@index([categoryId], map: "idx_ads_category_id")
+  @@index([status], map: "idx_ads_status")
+  @@map("ads")
+}
+
+model AdImage {
+  id        BigInt   @id @default(autoincrement())
+  adId      BigInt   @map("ad_id")
+  imageUrl  String   @map("image_url") @db.Text
+  isMain    Boolean  @default(false) @map("is_main")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@map("ad_images")
+}
+
+model Application {
+  id                 BigInt    @id @default(autoincrement())
+  adId               BigInt    @map("ad_id")
+  professionalUserId BigInt    @map("professional_user_id")
+  coverLetter        String?   @map("cover_letter") @db.Text
+  proposedPrice      Decimal?  @map("proposed_price") @db.Decimal(10, 2)
+  estimatedDays      Int?      @map("estimated_days")
+  status             String    @default("pending") @db.VarChar(20)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  ad            Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  professional  User          @relation(fields: [professionalUserId], references: [id], onDelete: Cascade)
+  serviceOrder  ServiceOrder?
+  conversations Conversation[]
+  attachments   ApplicationAttachment[]
+
+  @@unique([adId, professionalUserId], map: "uq_application_per_professional")
+  @@index([adId], map: "idx_applications_ad_id")
+  @@index([professionalUserId], map: "idx_applications_professional_user_id")
+  @@index([status], map: "idx_applications_status")
+  @@map("applications")
+}
+
+model ApplicationAttachment {
+  id            BigInt      @id @default(autoincrement())
+  applicationId BigInt      @map("application_id")
+  fileName      String      @map("file_name") @db.VarChar(255)
+  originalName  String      @map("original_name") @db.VarChar(255)
+  mimeType      String      @map("mime_type") @db.VarChar(120)
+  size          Int
+  url           String      @db.Text
+  uploadedAt    DateTime    @default(now()) @map("uploaded_at")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId], map: "idx_application_attachments_application_id")
+  @@map("application_attachments")
+}
+
+model ServiceOrder {
+  id                 BigInt    @id @default(autoincrement())
+  applicationId      BigInt    @unique @map("application_id")
+  clientUserId       BigInt    @map("client_user_id")
+  professionalUserId BigInt    @map("professional_user_id")
+  agreedPrice        Decimal   @map("agreed_price") @db.Decimal(10, 2)
+  startDate          DateTime? @map("start_date") @db.Date
+  endDate            DateTime? @map("end_date") @db.Date
+  status             String    @default("active") @db.VarChar(20)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  client        User           @relation("ClientOrders", fields: [clientUserId], references: [id], onDelete: Restrict)
+  professional  User           @relation("ProfessionalOrders", fields: [professionalUserId], references: [id], onDelete: Restrict)
+  conversations Conversation[]
+  reviews       Review[]
+
+  @@map("service_orders")
+}
+
+model Conversation {
+  id            BigInt    @id @default(autoincrement())
+  adId          BigInt?   @map("ad_id")
+  applicationId BigInt?   @map("application_id")
+  orderId       BigInt?   @map("order_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  ad           Ad?                       @relation(fields: [adId], references: [id], onDelete: SetNull)
+  application  Application?              @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  order        ServiceOrder?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId BigInt       @map("conversation_id")
+  userId         BigInt       @map("user_id")
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             BigInt       @id @default(autoincrement())
+  conversationId BigInt       @map("conversation_id")
+  senderUserId   BigInt       @map("sender_user_id")
+  body           String       @db.Text
+  isRead         Boolean      @default(false) @map("is_read")
+  sentAt         DateTime     @default(now()) @map("sent_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId], map: "idx_messages_conversation_id")
+  @@index([senderUserId], map: "idx_messages_sender_user_id")
+  @@map("messages")
+}
+
+model Favorite {
+  userId    BigInt   @map("user_id")
+  adId      BigInt   @map("ad_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@id([userId, adId])
+  @@map("favorites")
+}
+
+model Review {
+  id             BigInt       @id @default(autoincrement())
+  orderId        BigInt       @map("order_id")
+  reviewerUserId BigInt       @map("reviewer_user_id")
+  reviewedUserId BigInt       @map("reviewed_user_id")
+  rating         Int
+  comment        String?      @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at")
+  order          ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewer       User         @relation("ReviewsGiven", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  reviewed       User         @relation("ReviewsReceived", fields: [reviewedUserId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "idx_reviews_order_id")
+  @@map("reviews")
+}
+
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  title     String   @db.VarChar(150)
+  body      String?  @db.Text
+  type      String?  @db.VarChar(50)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_notifications_user_id")
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt?  @map("user_id")
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   BigInt?  @map("entity_id")
+  details    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_log")
+}

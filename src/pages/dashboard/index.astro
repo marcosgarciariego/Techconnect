@@ -1,0 +1,240 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Dashboard">
+  <div id="dashboard-content"></div>
+</DashboardLayout>
+
+<script>
+  import {
+    adApi,
+    applicationApi,
+    authApi,
+    conversationApi,
+    notificationApi,
+    orderApi,
+  } from '../../lib/api';
+
+  const container = document.getElementById('dashboard-content');
+
+  function escapeHtml(value: unknown) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function statCard(label: string, value: number, tone: string, iconPath: string) {
+    const tones: Record<string, string> = {
+      blue: 'bg-blue-50 text-blue-700 ring-blue-100',
+      green: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+      amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+      violet: 'bg-violet-50 text-violet-700 ring-violet-100',
+      rose: 'bg-rose-50 text-rose-700 ring-rose-100',
+    };
+
+    return `
+      <div class="rounded-lg bg-white p-5 ring-1 ring-gray-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">${label}</p>
+            <p class="mt-2 text-3xl font-bold text-gray-950">${value}</p>
+          </div>
+          <div class="rounded-lg p-3 ${tones[tone]}">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function actionLink(href: string, title: string, description: string, tone: string, iconPath: string) {
+    const tones: Record<string, string> = {
+      client: 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300',
+      professional: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300',
+      neutral: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50',
+    };
+
+    return `
+      <a href="${href}" class="flex min-h-24 items-center gap-4 rounded-lg border p-4 transition-colors ${tones[tone]}">
+        <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-white/80 ring-1 ring-black/5">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+          </svg>
+        </span>
+        <span>
+          <span class="block font-semibold text-gray-950">${title}</span>
+          <span class="mt-1 block text-sm text-gray-600">${description}</span>
+        </span>
+      </a>
+    `;
+  }
+
+  function renderClientDashboard(user: any, stats: any) {
+    return `
+      <section class="mb-8 overflow-hidden rounded-lg bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-600 p-8 text-white">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="text-sm font-medium uppercase tracking-wide text-blue-100">Panel de cliente</p>
+            <h1 class="mt-3 text-3xl font-bold">Hola, ${escapeHtml(user.fullName)}</h1>
+            <p class="mt-3 max-w-2xl text-blue-50">Publica necesidades, compara candidaturas y convierte la mejor propuesta en una orden de trabajo.</p>
+          </div>
+          <a href="/dashboard/cliente/nuevo-anuncio" class="inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-50">
+            Crear anuncio
+          </a>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        ${statCard('Anuncios publicados', stats.ads, 'blue', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2')}
+        ${statCard('Candidaturas recibidas', stats.applications, 'green', 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857')}
+        ${statCard('Ordenes activas', stats.orders, 'amber', 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z')}
+        ${statCard('Mensajes sin leer', stats.messages, 'violet', 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8')}
+      </section>
+
+      <section class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div class="xl:col-span-2 rounded-lg bg-white p-6 ring-1 ring-gray-200">
+          <div class="mb-5 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-950">Flujo de contratacion</h2>
+              <p class="text-sm text-gray-500">Tus proximos pasos como solicitante.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            ${actionLink('/dashboard/cliente/anuncios', 'Gestionar anuncios', 'Edita requisitos y revisa el interes recibido.', 'client', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2')}
+            ${actionLink('/dashboard/cliente/candidaturas', 'Evaluar candidaturas', 'Compara propuesta, plazos y adjuntos enviados.', 'client', 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7')}
+            ${actionLink('/dashboard/cliente/ordenes', 'Seguir ordenes', 'Controla trabajos aceptados y valoraciones.', 'neutral', 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z')}
+            ${actionLink('/dashboard/mensajes', 'Hablar con profesionales', 'Centraliza dudas antes y despues de contratar.', 'neutral', 'M8 12h.01M12 12h.01M16 12h.01')}
+          </div>
+        </div>
+
+        <aside class="rounded-lg bg-white p-6 ring-1 ring-gray-200">
+          <h2 class="text-lg font-semibold text-gray-950">Estado rapido</h2>
+          <div class="mt-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+              <span class="text-sm text-gray-600">Notificaciones</span>
+              <span class="font-semibold text-gray-950">${stats.notifications}</span>
+            </div>
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+              <span class="text-sm text-gray-600">Conversaciones pendientes</span>
+              <span class="font-semibold text-gray-950">${stats.messages}</span>
+            </div>
+            <div class="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+              Revisa candidaturas con adjuntos antes de aceptar: ahora cada profesional puede enviar documentos de apoyo.
+            </div>
+          </div>
+        </aside>
+      </section>
+    `;
+  }
+
+  function renderProfessionalDashboard(user: any, stats: any) {
+    return `
+      <section class="mb-8 overflow-hidden rounded-lg bg-gradient-to-r from-emerald-700 via-teal-600 to-sky-600 p-8 text-white">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="text-sm font-medium uppercase tracking-wide text-emerald-100">Panel profesional</p>
+            <h1 class="mt-3 text-3xl font-bold">Hola, ${escapeHtml(user.fullName)}</h1>
+            <p class="mt-3 max-w-2xl text-emerald-50">Encuentra proyectos, envia candidaturas completas y mantente cerca del cliente desde mensajes.</p>
+          </div>
+          <a href="/dashboard/profesional/explorar" class="inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50">
+            Buscar proyectos
+          </a>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        ${statCard('Candidaturas enviadas', stats.applications, 'green', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2')}
+        ${statCard('Trabajos activos', stats.orders, 'blue', 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745')}
+        ${statCard('Mensajes sin leer', stats.messages, 'violet', 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8')}
+        ${statCard('Avisos pendientes', stats.notifications, 'amber', 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158')}
+      </section>
+
+      <section class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div class="xl:col-span-2 rounded-lg bg-white p-6 ring-1 ring-gray-200">
+          <div class="mb-5">
+            <h2 class="text-lg font-semibold text-gray-950">Zona profesional</h2>
+            <p class="text-sm text-gray-500">Herramientas orientadas a captar y ejecutar trabajos.</p>
+          </div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            ${actionLink('/dashboard/profesional/explorar', 'Explorar anuncios', 'Filtra oportunidades activas y prepara tu propuesta.', 'professional', 'M21 21l-6-6m2-5a7 7 0 11-14 0')}
+            ${actionLink('/dashboard/profesional/candidaturas', 'Mis candidaturas', 'Consulta estados, adjuntos y propuestas enviadas.', 'professional', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10')}
+            ${actionLink('/dashboard/profesional/ordenes', 'Mis trabajos', 'Sigue ordenes aceptadas y entregas pendientes.', 'neutral', 'M21 13.255A23.931 23.931 0 0112 15')}
+            ${actionLink('/dashboard/profesional/perfil', 'Perfil profesional', 'Mejora tu descripcion, tarifa y disponibilidad.', 'neutral', 'M16 7a4 4 0 11-8 0 4 4 0 018 0z')}
+          </div>
+        </div>
+
+        <aside class="rounded-lg bg-white p-6 ring-1 ring-gray-200">
+          <h2 class="text-lg font-semibold text-gray-950">Siguiente accion</h2>
+          <div class="mt-5 space-y-4">
+            <div class="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
+              Adjunta documentos al enviar una candidatura para que el cliente tenga contexto completo desde el primer contacto.
+            </div>
+            <a href="/dashboard/profesional/candidaturas" class="block rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50">
+              Revisar candidaturas enviadas
+            </a>
+            <a href="/dashboard/mensajes" class="block rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50">
+              Responder conversaciones
+            </a>
+          </div>
+        </aside>
+      </section>
+    `;
+  }
+
+  async function loadDashboard() {
+    try {
+      const userResponse = await authApi.me();
+      if (!userResponse.success) {
+        window.location.href = '/login';
+        return;
+      }
+
+      const user = userResponse.data;
+      const isClient = user.roles.includes('client');
+      const isProfessional = user.roles.includes('professional');
+
+      const [adsRes, appsRes, ordersRes, notifRes, messagesRes] = await Promise.all([
+        isClient ? adApi.getUserAds() : Promise.resolve({ success: true, data: { total: 0 } }),
+        isProfessional
+          ? applicationApi.getMine()
+          : isClient
+            ? applicationApi.getReceived()
+            : Promise.resolve({ success: true, data: { total: 0 } }),
+        isProfessional
+          ? orderApi.getProfessionalOrders()
+          : isClient
+            ? orderApi.getClientOrders()
+            : Promise.resolve({ success: true, data: { total: 0 } }),
+        notificationApi.getUnreadCount(),
+        conversationApi.getUnreadCount(),
+      ]);
+
+      const stats = {
+        ads: adsRes.success ? adsRes.data.total || 0 : 0,
+        applications: appsRes.success ? appsRes.data.total || 0 : 0,
+        orders: ordersRes.success ? ordersRes.data.total || 0 : 0,
+        notifications: notifRes.success ? notifRes.data.count || 0 : 0,
+        messages: messagesRes.success ? messagesRes.data.count || 0 : 0,
+      };
+
+      container!.innerHTML = isProfessional
+        ? renderProfessionalDashboard(user, stats)
+        : renderClientDashboard(user, stats);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+      container!.innerHTML = `
+        <div class="rounded-lg bg-white py-12 text-center ring-1 ring-gray-200">
+          <p class="text-gray-600">Error al cargar el dashboard</p>
+        </div>
+      `;
+    }
+  }
+
+  loadDashboard();
+</script>

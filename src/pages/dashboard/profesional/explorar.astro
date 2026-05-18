@@ -1,0 +1,370 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Explorar Anuncios">
+  <div id="explore-ads-content"></div>
+</DashboardLayout>
+
+<script>
+  import { adApi, categoryApi, favoriteApi, applicationApi } from '../../../lib/api';
+  import { formatCurrency, formatRelativeTime } from '../../../lib/utils';
+
+  const container = document.getElementById('explore-ads-content');
+  let currentPage = 1;
+  const pageSize = 12;
+  let filters: any = {
+    search: '',
+    categoryId: '',
+    modality: '',
+    sortBy: 'newest',
+  };
+  let categories: any[] = [];
+
+  async function loadCategories() {
+    try {
+      const response = await categoryApi.list();
+      if (response.success) {
+        categories = response.data;
+      }
+    } catch (e) {}
+  }
+
+  async function loadAds() {
+    try {
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('pageSize', pageSize.toString());
+      params.set('status', 'active');
+
+      if (filters.search) params.set('search', filters.search);
+      if (filters.categoryId) params.set('categoryId', filters.categoryId);
+      if (filters.modality) params.set('modality', filters.modality);
+      if (filters.sortBy) params.set('sortBy', filters.sortBy);
+
+      const response = await adApi.list(params);
+      if (!response.success) throw new Error('Error');
+
+      const { items: ads, total, totalPages } = response.data;
+
+      const modalityLabels: Record<string, string> = {
+        online: 'Online',
+        presencial: 'Presencial',
+        hibrido: 'Híbrido',
+      };
+
+      container!.innerHTML = `
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900">Explorar Anuncios</h1>
+          <p class="mt-1 text-gray-600">${total} oportunidades disponibles</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div class="flex flex-col lg:flex-row gap-4">
+            <div class="flex-1">
+              <input
+                type="text"
+                id="search-input"
+                value="${filters.search}"
+                placeholder="Buscar por título o descripción..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <select id="category-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <option value="">Todas las categorías</option>
+              ${categories.map((cat) => `
+                <option value="${cat.id}" ${filters.categoryId == cat.id ? 'selected' : ''}>
+                  ${cat.name}
+                </option>
+              `).join('')}
+            </select>
+            <select id="modality-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <option value="">Todas las modalidades</option>
+              <option value="online" ${filters.modality === 'online' ? 'selected' : ''}>Online</option>
+              <option value="presencial" ${filters.modality === 'presencial' ? 'selected' : ''}>Presencial</option>
+              <option value="hibrido" ${filters.modality === 'hibrido' ? 'selected' : ''}>Híbrido</option>
+            </select>
+            <select id="sort-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <option value="newest" ${filters.sortBy === 'newest' ? 'selected' : ''}>Más recientes</option>
+              <option value="oldest" ${filters.sortBy === 'oldest' ? 'selected' : ''}>Más antiguos</option>
+              <option value="budget_desc" ${filters.sortBy === 'budget_desc' ? 'selected' : ''}>Mayor presupuesto</option>
+              <option value="budget_asc" ${filters.sortBy === 'budget_asc' ? 'selected' : ''}>Menor presupuesto</option>
+            </select>
+          </div>
+        </div>
+
+        ${ads.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p class="mt-4 text-gray-600">No se encontraron anuncios con los filtros actuales</p>
+            <button id="clear-filters" class="mt-4 text-primary-600 hover:text-primary-700">
+              Limpiar filtros
+            </button>
+          </div>
+        ` : `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            ${ads.map((ad: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="p-5">
+                  <div class="flex items-start justify-between mb-3">
+                    <span class="px-2 py-1 text-xs font-medium text-primary-700 bg-primary-100 rounded-full">
+                      ${ad.category?.name || 'Sin categoría'}
+                    </span>
+                    <button class="favorite-btn text-gray-400 hover:text-red-500 transition-colors ${ad.isFavorite ? 'text-red-500' : ''}" data-id="${ad.id}">
+                      <svg class="h-5 w-5" fill="${ad.isFavorite ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <a href="/anuncios/${ad.id}" class="block mb-2">
+                    <h3 class="font-semibold text-gray-900 hover:text-primary-600 line-clamp-2">
+                      ${ad.title}
+                    </h3>
+                  </a>
+
+                  <p class="text-sm text-gray-600 line-clamp-3 mb-4">${ad.description}</p>
+
+                  <div class="space-y-2 text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="text-gray-500">Presupuesto</span>
+                      <span class="font-medium text-gray-900">
+                        ${formatCurrency(ad.budgetMin)} - ${formatCurrency(ad.budgetMax)}
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-gray-500">Modalidad</span>
+                      <span class="text-gray-700">${modalityLabels[ad.modality]}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-gray-500">Ubicación</span>
+                      <span class="text-gray-700">${ad.location || 'Sin especificar'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="px-5 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-xs">
+                      ${ad.user?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '??'}
+                    </div>
+                    <span class="text-sm text-gray-600">${formatRelativeTime(ad.createdAt)}</span>
+                  </div>
+                  <button class="apply-btn px-3 py-1 text-sm font-medium ${ad.hasApplied ? 'text-gray-500 bg-gray-200 cursor-not-allowed' : 'text-white bg-primary-600 hover:bg-primary-700'} rounded-lg transition-colors" data-id="${ad.id}" ${ad.hasApplied ? 'disabled' : ''}>
+                    ${ad.hasApplied ? 'Ya aplicado' : 'Aplicar'}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          ${totalPages > 1 ? `
+            <div class="mt-8 flex justify-center gap-2">
+              <button id="prev-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>
+                Anterior
+              </button>
+              <span class="px-4 py-2 text-gray-600">
+                Página ${currentPage} de ${totalPages}
+              </span>
+              <button id="next-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}>
+                Siguiente
+              </button>
+            </div>
+          ` : ''}
+        `}
+      `;
+
+      // Event handlers
+      let searchTimeout: any;
+      document.getElementById('search-input')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          filters.search = (e.target as HTMLInputElement).value;
+          currentPage = 1;
+          loadAds();
+        }, 500);
+      });
+
+      document.getElementById('category-filter')?.addEventListener('change', (e) => {
+        filters.categoryId = (e.target as HTMLSelectElement).value;
+        currentPage = 1;
+        loadAds();
+      });
+
+      document.getElementById('modality-filter')?.addEventListener('change', (e) => {
+        filters.modality = (e.target as HTMLSelectElement).value;
+        currentPage = 1;
+        loadAds();
+      });
+
+      document.getElementById('sort-filter')?.addEventListener('change', (e) => {
+        filters.sortBy = (e.target as HTMLSelectElement).value;
+        currentPage = 1;
+        loadAds();
+      });
+
+      document.getElementById('clear-filters')?.addEventListener('click', () => {
+        filters = { search: '', categoryId: '', modality: '', sortBy: 'newest' };
+        currentPage = 1;
+        loadAds();
+      });
+
+      document.getElementById('prev-page')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadAds();
+        }
+      });
+
+      document.getElementById('next-page')?.addEventListener('click', () => {
+        currentPage++;
+        loadAds();
+      });
+
+      // Favorite toggle
+      document.querySelectorAll('.favorite-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) {
+            try {
+              await favoriteApi.toggle(id);
+              loadAds();
+            } catch (error) {
+              console.error('Error toggling favorite');
+            }
+          }
+        });
+      });
+
+      // Apply button
+      document.querySelectorAll('.apply-btn:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) {
+            showApplyModal(id);
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar los anuncios</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  function showApplyModal(adId: string) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Enviar candidatura</h3>
+        <form id="apply-form" enctype="multipart/form-data">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Carta de presentación</label>
+              <textarea
+                name="coverLetter"
+                rows="4"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Preséntate y explica por qué eres el candidato ideal..."
+              ></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Precio propuesto (€)</label>
+                <input
+                  type="number"
+                  name="proposedPrice"
+                  min="0"
+                  step="0.01"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Días estimados</label>
+                <input
+                  type="number"
+                  name="estimatedDays"
+                  min="1"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Archivos adjuntos</label>
+              <input
+                type="file"
+                name="attachments"
+                multiple
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <p class="mt-1 text-xs text-gray-500">Puedes adjuntar presupuestos, portfolio o documentación útil.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button type="button" id="cancel-apply" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              Enviar candidatura
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#cancel-apply')?.addEventListener('click', () => {
+      modal.remove();
+    });
+
+    modal.querySelector('#apply-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+      const payload = new FormData();
+      payload.append('adId', adId);
+
+      const coverLetter = formData.get('coverLetter');
+      const proposedPrice = formData.get('proposedPrice');
+      const estimatedDays = formData.get('estimatedDays');
+      const files = formData.getAll('attachments').filter((file) => file instanceof File && file.size > 0);
+
+      if (coverLetter) payload.append('coverLetter', coverLetter);
+      if (proposedPrice) payload.append('proposedPrice', proposedPrice);
+      if (estimatedDays) payload.append('estimatedDays', estimatedDays);
+      files.forEach((file) => payload.append('attachments', file));
+
+      try {
+        const response = await applicationApi.create(payload);
+        if (response.success) {
+          modal.remove();
+          loadAds();
+        } else {
+          throw new Error(response.error || 'Error');
+        }
+      } catch (error: any) {
+        alert(error.message || 'Error al enviar la candidatura');
+      }
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  // Init
+  loadCategories().then(loadAds);
+</script>

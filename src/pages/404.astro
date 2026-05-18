@@ -1,0 +1,30 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Página no encontrada">
+  <div class="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50">
+    <div class="text-center">
+      <h1 class="text-9xl font-bold text-primary-600">404</h1>
+      <h2 class="mt-4 text-3xl font-bold text-gray-900">Página no encontrada</h2>
+      <p class="mt-4 text-lg text-gray-600 max-w-md mx-auto">
+        Lo sentimos, no pudimos encontrar la página que buscas.
+        Puede que haya sido movida o eliminada.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+        <a
+          href="/"
+          class="inline-flex items-center justify-center px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          Volver al inicio
+        </a>
+        <a
+          href="/anuncios"
+          class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Ver anuncios
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

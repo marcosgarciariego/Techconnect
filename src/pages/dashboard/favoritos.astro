@@ -1,0 +1,95 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Favoritos">
+  <div id="favorites-content"></div>
+</DashboardLayout>
+
+<script>
+  import { favoriteApi } from '../../lib/api';
+  import { getBudgetRange, formatRelativeTime, getModalityLabel } from '../../lib/utils';
+
+  const container = document.getElementById('favorites-content');
+
+  async function loadFavorites() {
+    try {
+      const response = await favoriteApi.list();
+      if (!response.success) throw new Error('Error');
+
+      const favorites = response.data.items;
+
+      container!.innerHTML = `
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900">Mis favoritos</h1>
+          <p class="mt-1 text-gray-600">Anuncios que has guardado</p>
+        </div>
+
+        ${favorites.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            <p class="mt-4 text-gray-600">No tienes anuncios guardados</p>
+            <a href="/anuncios" class="mt-4 inline-block text-primary-600 hover:underline">Explorar anuncios</a>
+          </div>
+        ` : `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            ${favorites.map((ad: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div class="h-40 bg-gray-100 flex items-center justify-center text-gray-400">
+                  <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div class="p-4">
+                  <span class="text-xs font-medium text-primary-600">${ad.category?.name || 'Sin categoría'}</span>
+                  <h3 class="mt-1 font-semibold text-gray-900 line-clamp-2">${ad.title}</h3>
+                  <p class="mt-2 text-sm text-gray-600 line-clamp-2">${ad.description}</p>
+                  <div class="mt-4 flex items-center justify-between">
+                    <span class="font-semibold text-gray-900">${getBudgetRange(ad.budgetMin, ad.budgetMax)}</span>
+                    <button
+                      class="remove-favorite p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      data-id="${ad.id}"
+                    >
+                      <svg class="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <a href="/anuncios/${ad.id}" class="mt-4 block text-center py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Ver anuncio
+                  </a>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+
+      // Add remove handlers
+      document.querySelectorAll('.remove-favorite').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) {
+            try {
+              await favoriteApi.remove(id);
+              loadFavorites();
+            } catch (error) {
+              console.error('Error removing favorite:', error);
+            }
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar los favoritos</p>
+        </div>
+      `;
+    }
+  }
+
+  loadFavorites();
+</script>

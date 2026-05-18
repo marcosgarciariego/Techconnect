@@ -1,0 +1,192 @@
+
+> techconnect@1.0.0 dev:astro
+> astro dev
+
+[2m15:56:23[22m [34m[@astrojs/node][39m Enabling sessions with filesystem storage
+[2m15:56:23[22m [34m[types][39m Generated [2m1ms[22m
+[2m15:56:23[22m [34m[content][39m Syncing content
+[2m15:56:24[22m [34m[content][39m Synced content
+[2m15:56:24[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+
+[42m[1m astro [22m[49m [32mv5.18.1[39m [2mready in[22m 863 [2mms[22m
+
+[2m┃[22m Local    [36mhttp://localhost:4321/[39m
+[2m┃[22m Network  [36mhttp://192.168.1.74:4321/[39m
+
+[2m15:56:24[22m [32mwatching for file changes...[39m
+
+[43m[30m update [39m[49m [33m▶ New version of Astro available: 6.1.5[39m
+  Run [36mnpx @astrojs/upgrade[39m to update
+
+[2m15:57:20[22m Configuration file updated. Restarting...
+[2m15:57:20[22m [34m[@astrojs/node][39m Enabling sessions with filesystem storage
+[2m15:57:20[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m15:57:20[22m [34m[content][39m Syncing content
+[2m15:57:20[22m [34m[content][39m Synced content
+[2m15:57:20[22m [34m[types][39m Generated [2m336ms[22m
+[2m15:57:20[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m15:57:20[22m [34m[vite][39m [32m✨ optimized dependencies changed. reloading[39m
+[2m16:04:32[22m [34m[200][39m / [2m277ms[22m
+[2m16:05:47[22m [34m[200][39m / [2m5ms[22m
+[2m16:06:22[22m Configuration file updated. Restarting...
+[2m16:06:22[22m [34m[@astrojs/node][39m Enabling sessions with filesystem storage
+[2m16:06:22[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m16:06:22[22m [34m[content][39m Syncing content
+[2m16:06:22[22m [34m[content][39m Synced content
+[2m16:06:22[22m [34m[types][39m Generated [2m319ms[22m
+[2m16:06:22[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m16:06:23[22m [34m[vite][39m [32m✨ optimized dependencies changed. reloading[39m
+[2m16:08:19[22m [34m[200][39m / [2m99ms[22m
+[2m16:08:22[22m [34m[200][39m /login [2m8ms[22m
+[2m16:08:23[22m [34m[200][39m /register [2m6ms[22m
+[2m16:08:25[22m [34m[200][39m /anuncios [2m4ms[22m
+[2m16:08:26[22m [34m[200][39m /anuncios/1 [2m4ms[22m
+[2m16:08:27[22m [34m[200][39m /profesionales/3 [2m3ms[22m
+[2m16:08:29[22m [34m[200][39m /dashboard [2m4ms[22m
+[2m16:08:30[22m [33m[404][39m /ruta-que-no-existe [2m3ms[22m
+[2m16:08:32[22m [34m[200][39m /login [2m2ms[22m
+[2m16:09:17[22m [34m[200][39m /login [2m3ms[22m
+[2m16:09:18[22m [34m[200][39m /login [2m2ms[22m
+[2m16:11:49[22m [34m[watch][39m src/layouts/DashboardLayout.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/login.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/login.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/register.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/register.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/anuncios/index.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/anuncios/index.astro
+[2m16:11:49[22m [34m[watch][39m src/pages/anuncios/[id].astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/favoritos.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/favoritos.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/mensajes.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/mensajes.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/notificaciones.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/notificaciones.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/perfil.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/perfil.astro
+[2m16:13:40[22m [34m[watch][39m src/pages/dashboard/index.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/anuncios.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/anuncios.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/candidaturas.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/candidaturas.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/candidaturas.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/candidaturas.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/nuevo-anuncio.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/cliente/nuevo-anuncio.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/explorar.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/explorar.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/perfil.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/perfil.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/valoraciones.astro
+[2m16:14:04[22m [34m[watch][39m src/pages/dashboard/profesional/valoraciones.astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/cliente/ordenes.astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/cliente/ordenes.astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/profesional/ordenes.astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/profesional/ordenes.astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/cliente/editar-anuncio/[id].astro
+[2m16:14:39[22m [34m[watch][39m src/pages/dashboard/cliente/editar-anuncio/[id].astro
+[2m16:15:20[22m [34m[watch][39m src/layouts/DashboardLayout.astro
+[2m16:15:35[22m [34m[200][39m /login [2m129ms[22m
+[2m16:16:48[22m [34m[200][39m / [2m4ms[22m
+[2m16:16:50[22m [34m[200][39m /login [2m2ms[22m
+[2m16:16:52[22m [34m[200][39m /register [2m4ms[22m
+[2m16:16:53[22m [34m[200][39m /anuncios [2m3ms[22m
+[2m16:16:55[22m [34m[200][39m /anuncios/1 [2m3ms[22m
+[2m16:16:56[22m [34m[200][39m /profesionales/3 [2m3ms[22m
+[2m16:16:58[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:16:58[22m [34m[200][39m /login [2m3ms[22m
+[2m16:16:59[22m [33m[404][39m /ruta-que-no-existe [2m2ms[22m
+[2m16:17:01[22m [34m[200][39m /login [2m2ms[22m
+[2m16:17:02[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:17:03[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:17:05[22m [34m[200][39m /dashboard/perfil [2m2ms[22m
+[2m16:17:06[22m [34m[200][39m /dashboard/favoritos [2m2ms[22m
+[2m16:17:08[22m [34m[200][39m /dashboard/mensajes [2m2ms[22m
+[2m16:17:09[22m [34m[200][39m /dashboard/notificaciones [2m3ms[22m
+[2m16:17:11[22m [34m[200][39m /dashboard/cliente/anuncios [2m2ms[22m
+[2m16:17:12[22m [34m[200][39m /dashboard/cliente/nuevo-anuncio [2m4ms[22m
+[2m16:17:14[22m [34m[200][39m /dashboard/cliente/ordenes [2m3ms[22m
+[2m16:17:15[22m [34m[200][39m /dashboard/cliente/candidaturas [2m2ms[22m
+[2m16:17:16[22m [34m[200][39m /dashboard/cliente/editar-anuncio/1 [2m3ms[22m
+[2m16:17:18[22m [34m[200][39m /login [2m2ms[22m
+[2m16:17:19[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:17:21[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:17:22[22m [34m[200][39m /dashboard/perfil [2m3ms[22m
+[2m16:17:23[22m [34m[200][39m /dashboard/favoritos [2m2ms[22m
+[2m16:17:25[22m [34m[200][39m /dashboard/mensajes [2m3ms[22m
+[2m16:17:26[22m [34m[200][39m /dashboard/notificaciones [2m2ms[22m
+[2m16:17:28[22m [34m[200][39m /dashboard/profesional/explorar [2m3ms[22m
+[2m16:17:29[22m [34m[200][39m /dashboard/profesional/candidaturas [2m2ms[22m
+[2m16:17:31[22m [34m[200][39m /dashboard/profesional/ordenes [2m3ms[22m
+[2m16:17:32[22m [34m[200][39m /dashboard/profesional/perfil [2m2ms[22m
+[2m16:17:33[22m [34m[200][39m /dashboard/profesional/valoraciones [2m3ms[22m
+[2m16:17:35[22m [34m[200][39m /login [2m3ms[22m
+[2m16:17:36[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:17:38[22m [34m[200][39m /admin [2m3ms[22m
+[2m16:17:39[22m [34m[200][39m /admin/usuarios [2m3ms[22m
+[2m16:17:41[22m [34m[200][39m /admin/categorias [2m2ms[22m
+[2m16:17:42[22m [34m[200][39m /admin/anuncios [2m3ms[22m
+[2m16:17:43[22m [34m[200][39m /admin/auditoria [2m3ms[22m
+[2m16:18:10[22m [33m[404][39m /dashboard/profesional/aplicar/1 [2m3ms[22m
+[2m16:19:00[22m [34m[watch][39m src/pages/anuncios/[id].astro
+[2m16:19:00[22m [34m[watch][39m src/pages/anuncios/[id].astro
+[2m16:20:02[22m [34m[200][39m / [2m72ms[22m
+[2m16:20:05[22m [34m[200][39m /login [2m2ms[22m
+[2m16:20:07[22m [34m[200][39m /register [2m2ms[22m
+[2m16:20:08[22m [34m[200][39m /anuncios [2m3ms[22m
+[2m16:20:10[22m [34m[200][39m /anuncios/1 [2m2ms[22m
+[2m16:20:11[22m [34m[200][39m /profesionales/3 [2m2ms[22m
+[2m16:20:12[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:20:12[22m [34m[200][39m /login [2m2ms[22m
+[2m16:20:14[22m [33m[404][39m /ruta-que-no-existe [2m2ms[22m
+[2m16:20:15[22m [34m[200][39m /login [2m2ms[22m
+[2m16:20:16[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:20:18[22m [34m[200][39m /anuncios/4 [2m2ms[22m
+[2m16:21:25[22m [34m[200][39m / [2m2ms[22m
+[2m16:21:28[22m [34m[200][39m /login [2m2ms[22m
+[2m16:21:29[22m [34m[200][39m /register [2m2ms[22m
+[2m16:21:31[22m [34m[200][39m /anuncios [2m3ms[22m
+[2m16:21:32[22m [34m[200][39m /anuncios/1 [2m3ms[22m
+[2m16:21:34[22m [34m[200][39m /profesionales/3 [2m3ms[22m
+[2m16:21:35[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:21:35[22m [34m[200][39m /login [2m2ms[22m
+[2m16:21:36[22m [33m[404][39m /ruta-que-no-existe [2m2ms[22m
+[2m16:21:38[22m [34m[200][39m /login [2m3ms[22m
+[2m16:21:39[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:21:41[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:21:42[22m [34m[200][39m /dashboard/perfil [2m3ms[22m
+[2m16:21:44[22m [34m[200][39m /dashboard/favoritos [2m3ms[22m
+[2m16:21:45[22m [34m[200][39m /dashboard/mensajes [2m2ms[22m
+[2m16:21:47[22m [34m[200][39m /dashboard/notificaciones [2m2ms[22m
+[2m16:21:48[22m [34m[200][39m /dashboard/cliente/anuncios [2m3ms[22m
+[2m16:21:49[22m [34m[200][39m /dashboard/cliente/nuevo-anuncio [2m3ms[22m
+[2m16:21:51[22m [34m[200][39m /dashboard/cliente/ordenes [2m2ms[22m
+[2m16:21:52[22m [34m[200][39m /dashboard/cliente/candidaturas [2m2ms[22m
+[2m16:21:54[22m [34m[200][39m /dashboard/cliente/editar-anuncio/1 [2m3ms[22m
+[2m16:21:55[22m [34m[200][39m /login [2m2ms[22m
+[2m16:21:56[22m [34m[200][39m /dashboard [2m2ms[22m
+[2m16:21:58[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:21:59[22m [34m[200][39m /dashboard/perfil [2m2ms[22m
+[2m16:22:01[22m [34m[200][39m /dashboard/favoritos [2m3ms[22m
+[2m16:22:02[22m [34m[200][39m /dashboard/mensajes [2m3ms[22m
+[2m16:22:04[22m [34m[200][39m /dashboard/notificaciones [2m3ms[22m
+[2m16:22:05[22m [34m[200][39m /dashboard/profesional/explorar [2m2ms[22m
+[2m16:22:06[22m [34m[200][39m /dashboard/profesional/candidaturas [2m3ms[22m
+[2m16:22:08[22m [34m[200][39m /dashboard/profesional/ordenes [2m2ms[22m
+[2m16:22:09[22m [34m[200][39m /dashboard/profesional/perfil [2m2ms[22m
+[2m16:22:11[22m [34m[200][39m /dashboard/profesional/valoraciones [2m3ms[22m
+[2m16:22:12[22m [34m[200][39m /anuncios/3 [2m2ms[22m
+[2m16:22:14[22m [34m[200][39m /login [2m2ms[22m
+[2m16:22:15[22m [34m[200][39m /dashboard [2m3ms[22m
+[2m16:22:16[22m [34m[200][39m /admin [2m2ms[22m
+[2m16:22:18[22m [34m[200][39m /admin/usuarios [2m2ms[22m
+[2m16:22:19[22m [34m[200][39m /admin/categorias [2m2ms[22m
+[2m16:22:20[22m [34m[200][39m /admin/anuncios [2m2ms[22m
+[2m16:22:22[22m [34m[200][39m /admin/auditoria [2m3ms[22m
+[2m16:22:39[22m Configuration file updated. Restarting...
+[2m16:22:39[22m [34m[@astrojs/node][39m Enabling sessions with filesystem storage
+[2m16:22:39[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m16:22:39[22m [34m[content][39m Syncing content
+[2m16:22:39[22m [34m[content][39m Synced content
+[2m16:22:39[22m [34m[types][39m Generated [2m313ms[22m
+[2m16:22:39[22m [34m[vite][39m Re-optimizing dependencies because lockfile has changed
+[2m16:23:08[22m [34m[200][39m / [2m76ms[22m

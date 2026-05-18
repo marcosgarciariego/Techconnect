@@ -1,0 +1,17 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { AdForm } from '../../../components/ads/AdForm';
+---
+
+<DashboardLayout title="Crear anuncio">
+  <div class="max-w-2xl">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-gray-900">Crear nuevo anuncio</h1>
+      <p class="mt-1 text-gray-600">Describe lo que necesitas y recibe candidaturas de profesionales</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+      <AdForm client:load />
+    </div>
+  </div>
+</DashboardLayout>

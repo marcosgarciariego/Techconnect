@@ -1,0 +1,196 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Gestión de Categorías">
+  <div id="categories-management-content"></div>
+</AdminLayout>
+
+<script>
+  import { categoryApi, adminApi } from '../../lib/api';
+
+  const container = document.getElementById('categories-management-content');
+
+  async function loadCategories() {
+    try {
+      const response = await categoryApi.list();
+      if (!response.success) throw new Error('Error');
+
+      const categories = response.data;
+
+      container!.innerHTML = `
+        <div class="mb-8 flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Gestión de Categorías</h1>
+            <p class="mt-1 text-gray-600">${categories.length} categorías</p>
+          </div>
+          <button id="add-category" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            + Nueva Categoría
+          </button>
+        </div>
+
+        ${categories.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <p class="mt-4 text-gray-600">No hay categorías creadas</p>
+          </div>
+        ` : `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${categories.map((cat: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <h3 class="font-semibold text-gray-900">${cat.name}</h3>
+                    <p class="mt-1 text-sm text-gray-500">${cat.description || 'Sin descripción'}</p>
+                    <p class="mt-2 text-xs text-gray-400">${cat._count?.ads || 0} anuncios</p>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button class="edit-category p-1 text-gray-400 hover:text-primary-600" data-id="${cat.id}" data-name="${cat.name}" data-description="${cat.description || ''}" title="Editar">
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button class="delete-category p-1 text-gray-400 hover:text-red-600" data-id="${cat.id}" data-count="${cat._count?.ads || 0}" title="Eliminar">
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+
+      // Add category
+      document.getElementById('add-category')?.addEventListener('click', () => {
+        showCategoryModal();
+      });
+
+      // Edit category
+      document.querySelectorAll('.edit-category').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          const name = (btn as HTMLElement).dataset.name;
+          const description = (btn as HTMLElement).dataset.description;
+          showCategoryModal(id, name, description);
+        });
+      });
+
+      // Delete category
+      document.querySelectorAll('.delete-category').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = (btn as HTMLElement).dataset.id;
+          const count = parseInt((btn as HTMLElement).dataset.count || '0');
+
+          if (count > 0) {
+            alert('No puedes eliminar una categoría que tiene anuncios asociados');
+            return;
+          }
+
+          if (id && confirm('¿Estás seguro de que quieres eliminar esta categoría?')) {
+            try {
+              await adminApi.deleteCategory(id);
+              loadCategories();
+            } catch (error) {
+              alert('Error al eliminar la categoría');
+            }
+          }
+        });
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar las categorías</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  function showCategoryModal(id?: string, name?: string, description?: string) {
+    const isEdit = !!id;
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">${isEdit ? 'Editar' : 'Nueva'} Categoría</h3>
+        <form id="category-form">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <input
+                type="text"
+                name="name"
+                required
+                value="${name || ''}"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Ej: Desarrollo Web"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <textarea
+                name="description"
+                rows="3"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Describe esta categoría..."
+              >${description || ''}</textarea>
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button type="button" id="cancel-modal" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              ${isEdit ? 'Guardar' : 'Crear'}
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#cancel-modal')?.addEventListener('click', () => {
+      modal.remove();
+    });
+
+    modal.querySelector('#category-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+
+      const data = {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string || undefined,
+      };
+
+      try {
+        if (isEdit) {
+          await adminApi.updateCategory(id!, data);
+        } else {
+          await adminApi.createCategory(data);
+        }
+        modal.remove();
+        loadCategories();
+      } catch (error) {
+        alert('Error al guardar la categoría');
+      }
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  loadCategories();
+</script>

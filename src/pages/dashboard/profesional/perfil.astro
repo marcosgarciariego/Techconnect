@@ -1,0 +1,311 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mi Perfil Profesional">
+  <div id="professional-profile-content"></div>
+</DashboardLayout>
+
+<script>
+  import { userApi } from '../../../lib/api';
+
+  const container = document.getElementById('professional-profile-content');
+
+  async function loadProfile() {
+    try {
+      const [profileResponse, professionalResponse] = await Promise.all([
+        userApi.getProfile(),
+        userApi.getProfessionalProfile(),
+      ]);
+
+      if (!profileResponse.success) throw new Error('Error');
+
+      const user = profileResponse.data;
+      const professional = professionalResponse.success ? professionalResponse.data : null;
+
+      container!.innerHTML = `
+        <div class="max-w-3xl">
+          <div class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">Mi Perfil Profesional</h1>
+            <p class="mt-1 text-gray-600">Gestiona tu información y perfil profesional</p>
+          </div>
+
+          <!-- Profile Preview -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <div class="flex items-start gap-6">
+              <div class="h-20 w-20 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-2xl flex-shrink-0">
+                ${user.avatarUrl ? `<img src="${user.avatarUrl}" alt="${user.fullName}" class="h-20 w-20 rounded-full object-cover" />` : user.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '??'}
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl font-semibold text-gray-900">${user.fullName}</h2>
+                  ${professional?.verified ? `
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                      <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                      Verificado
+                    </span>
+                  ` : ''}
+                </div>
+                <p class="text-gray-500">${user.city || 'Sin ubicación'}</p>
+                ${user.bio ? `<p class="mt-2 text-gray-600">${user.bio}</p>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Basic Profile Form -->
+          <form id="basic-profile-form" class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Información básica</h3>
+
+            <div class="space-y-4">
+              <div>
+                <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre completo *
+                </label>
+                <input
+                  type="text"
+                  id="fullName"
+                  name="fullName"
+                  required
+                  value="${user.fullName || ''}"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value="${user.phone || ''}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label for="city" class="block text-sm font-medium text-gray-700 mb-1">
+                    Ciudad
+                  </label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    value="${user.city || ''}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label for="bio" class="block text-sm font-medium text-gray-700 mb-1">
+                  Biografía breve
+                </label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  rows="3"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="Cuéntanos un poco sobre ti..."
+                >${user.bio || ''}</textarea>
+              </div>
+
+              <div>
+                <label for="avatarUrl" class="block text-sm font-medium text-gray-700 mb-1">
+                  URL de avatar
+                </label>
+                <input
+                  type="url"
+                  id="avatarUrl"
+                  name="avatarUrl"
+                  value="${user.avatarUrl || ''}"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              class="mt-6 px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Guardar información básica
+            </button>
+            <p id="basic-form-message" class="mt-2 text-sm hidden"></p>
+          </form>
+
+          <!-- Professional Profile Form -->
+          <form id="professional-profile-form" class="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Perfil profesional</h3>
+
+            <div class="space-y-4">
+              <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción profesional
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows="4"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="Describe tu experiencia, especialidades, herramientas que dominas..."
+                >${professional?.description || ''}</textarea>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label for="yearsExperience" class="block text-sm font-medium text-gray-700 mb-1">
+                    Años de experiencia
+                  </label>
+                  <input
+                    type="number"
+                    id="yearsExperience"
+                    name="yearsExperience"
+                    min="0"
+                    value="${professional?.yearsExperience || ''}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label for="hourlyRate" class="block text-sm font-medium text-gray-700 mb-1">
+                    Tarifa por hora (€)
+                  </label>
+                  <input
+                    type="number"
+                    id="hourlyRate"
+                    name="hourlyRate"
+                    min="0"
+                    step="0.01"
+                    value="${professional?.hourlyRate || ''}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label for="portfolioUrl" class="block text-sm font-medium text-gray-700 mb-1">
+                    URL del portfolio
+                  </label>
+                  <input
+                    type="url"
+                    id="portfolioUrl"
+                    name="portfolioUrl"
+                    value="${professional?.portfolioUrl || ''}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="https://github.com/tu-usuario"
+                  />
+                </div>
+                <div>
+                  <label for="availability" class="block text-sm font-medium text-gray-700 mb-1">
+                    Disponibilidad
+                  </label>
+                  <select
+                    id="availability"
+                    name="availability"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="full-time" ${professional?.availability === 'full-time' ? 'selected' : ''}>Tiempo completo</option>
+                    <option value="part-time" ${professional?.availability === 'part-time' ? 'selected' : ''}>Tiempo parcial</option>
+                    <option value="freelance" ${professional?.availability === 'freelance' ? 'selected' : ''}>Freelance</option>
+                    <option value="weekends" ${professional?.availability === 'weekends' ? 'selected' : ''}>Fines de semana</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              class="mt-6 px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Guardar perfil profesional
+            </button>
+            <p id="professional-form-message" class="mt-2 text-sm hidden"></p>
+          </form>
+        </div>
+      `;
+
+      // Basic profile form
+      document.getElementById('basic-profile-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const messageEl = document.getElementById('basic-form-message')!;
+
+        const data: any = {
+          fullName: formData.get('fullName'),
+        };
+
+        if (formData.get('phone')) data.phone = formData.get('phone');
+        if (formData.get('city')) data.city = formData.get('city');
+        if (formData.get('bio')) data.bio = formData.get('bio');
+        if (formData.get('avatarUrl')) data.avatarUrl = formData.get('avatarUrl');
+
+        try {
+          const response = await userApi.updateProfile(data);
+
+          if (response.success) {
+            messageEl.textContent = 'Información básica actualizada';
+            messageEl.className = 'mt-2 text-sm text-green-600';
+            messageEl.classList.remove('hidden');
+          } else {
+            throw new Error(response.error || 'Error');
+          }
+        } catch (error: any) {
+          messageEl.textContent = error.message || 'Error al actualizar';
+          messageEl.className = 'mt-2 text-sm text-red-600';
+          messageEl.classList.remove('hidden');
+        }
+      });
+
+      // Professional profile form
+      document.getElementById('professional-profile-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const messageEl = document.getElementById('professional-form-message')!;
+
+        const data: any = {};
+
+        if (formData.get('description')) data.description = formData.get('description');
+        if (formData.get('yearsExperience')) data.yearsExperience = parseInt(formData.get('yearsExperience') as string);
+        if (formData.get('hourlyRate')) data.hourlyRate = parseFloat(formData.get('hourlyRate') as string);
+        if (formData.get('portfolioUrl')) data.portfolioUrl = formData.get('portfolioUrl');
+        if (formData.get('availability')) data.availability = formData.get('availability');
+
+        try {
+          const response = await userApi.updateProfessionalProfile(data);
+
+          if (response.success) {
+            messageEl.textContent = 'Perfil profesional actualizado';
+            messageEl.className = 'mt-2 text-sm text-green-600';
+            messageEl.classList.remove('hidden');
+          } else {
+            throw new Error(response.error || 'Error');
+          }
+        } catch (error: any) {
+          messageEl.textContent = error.message || 'Error al actualizar';
+          messageEl.className = 'mt-2 text-sm text-red-600';
+          messageEl.classList.remove('hidden');
+        }
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar el perfil</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  loadProfile();
+</script>

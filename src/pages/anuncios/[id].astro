@@ -1,0 +1,298 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { HeaderWithAuth } from '../../components/layout/HeaderWithAuth';
+import { Footer } from '../../components/layout/Footer';
+
+const { id } = Astro.params;
+---
+
+<Layout title="Detalle del anuncio">
+  <HeaderWithAuth client:only="react" />
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="ad-detail" data-ad-id={id}></div>
+  </main>
+
+  <Footer client:load />
+</Layout>
+
+<script>
+  import { adApi, applicationApi, authApi, favoriteApi } from '../../lib/api';
+  import { formatCurrency, formatDate, getBudgetRange, getModalityLabel, getStatusLabel } from '../../lib/utils';
+
+  const adId = document.getElementById('ad-detail')?.dataset.adId;
+  const container = document.getElementById('ad-detail');
+
+  if (adId && container) {
+    loadAdDetail();
+  }
+
+  async function loadAdDetail() {
+    try {
+      const response = await adApi.get(adId!);
+      if (response.success) {
+        renderAd(response.data);
+      }
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">No se pudo cargar el anuncio</p>
+          <a href="/anuncios" class="mt-4 inline-block text-primary-600 hover:underline">Volver a anuncios</a>
+        </div>
+      `;
+    }
+  }
+
+  function renderAd(ad: any) {
+    container!.innerHTML = `
+      <div class="mb-6">
+        <a href="/anuncios" class="text-primary-600 hover:underline flex items-center">
+          <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver a anuncios
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main content -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="text-sm font-medium text-primary-600">${ad.category?.name || 'Sin categoría'}</span>
+                <h1 class="mt-2 text-2xl font-bold text-gray-900">${ad.title}</h1>
+              </div>
+              <button
+                id="favorite-btn"
+                class="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                data-favorited="${ad.isFavorited}"
+              >
+                <svg
+                  class="h-6 w-6 ${ad.isFavorited ? 'text-red-500 fill-current' : 'text-gray-400'}"
+                  fill="${ad.isFavorited ? 'currentColor' : 'none'}"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+              <span class="flex items-center">
+                <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                </svg>
+                ${ad.location || 'No especificada'}
+              </span>
+              <span class="flex items-center">
+                <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                ${getModalityLabel(ad.modality)}
+              </span>
+              <span class="flex items-center">
+                <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                ${formatDate(ad.createdAt)}
+              </span>
+            </div>
+
+            <div class="mt-6 prose max-w-none">
+              <h3 class="text-lg font-semibold">Descripción</h3>
+              <p class="whitespace-pre-wrap text-gray-700">${ad.description}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <!-- Budget card -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Presupuesto</h3>
+            <p class="mt-2 text-2xl font-bold text-primary-600">
+              ${getBudgetRange(ad.budgetMin, ad.budgetMax)}
+            </p>
+            <p class="mt-1 text-sm text-gray-500">${ad.applicationsCount} candidatura${ad.applicationsCount !== 1 ? 's' : ''}</p>
+
+            ${!ad.hasApplied ? `
+              <button
+                id="apply-btn"
+                class="mt-6 w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+              >
+                Enviar candidatura
+              </button>
+            ` : `
+              <p class="mt-6 text-center text-green-600 font-medium">Ya has aplicado a este anuncio</p>
+            `}
+          </div>
+
+          <!-- Publisher card -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Publicado por</h3>
+            <a href="/profesionales/${ad.user?.id}" class="flex items-center space-x-3 hover:bg-gray-50 -mx-2 px-2 py-2 rounded-lg transition-colors">
+              <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-medium">
+                ${ad.user?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'U'}
+              </div>
+              <div>
+                <p class="font-medium text-gray-900">${ad.user?.fullName || 'Usuario'}</p>
+                <p class="text-sm text-gray-500">${ad.user?.city || 'Sin ubicación'}</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add event listeners
+    const favoriteBtn = document.getElementById('favorite-btn');
+    if (favoriteBtn) {
+      favoriteBtn.addEventListener('click', async () => {
+        try {
+          const response = await favoriteApi.toggle(adId!);
+          if (response.success) {
+            loadAdDetail();
+          }
+        } catch (error) {
+          console.error('Error toggling favorite:', error);
+        }
+      });
+    }
+
+    const applyBtn = document.getElementById('apply-btn');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', () => {
+        handleApply(adId!);
+      });
+    }
+  }
+
+  async function handleApply(targetAdId: string) {
+    try {
+      const authResponse = await authApi.me();
+      const user = authResponse.success ? authResponse.data : null;
+
+      if (!user) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+
+      if (!user.roles?.includes('professional')) {
+        alert('Necesitas iniciar sesion como profesional para enviar una candidatura.');
+        return;
+      }
+
+      showApplyModal(targetAdId);
+    } catch (error) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+    }
+  }
+
+  function showApplyModal(targetAdId: string) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Enviar candidatura</h3>
+        <form id="apply-form" enctype="multipart/form-data">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Carta de presentacion</label>
+              <textarea
+                name="coverLetter"
+                rows="4"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Presentate y explica por que eres el candidato ideal..."
+              ></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Precio propuesto (EUR)</label>
+                <input
+                  type="number"
+                  name="proposedPrice"
+                  min="0"
+                  step="0.01"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Dias estimados</label>
+                <input
+                  type="number"
+                  name="estimatedDays"
+                  min="1"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Archivos adjuntos</label>
+              <input
+                type="file"
+                name="attachments"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,image/png,image/jpeg,image/webp"
+                class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100"
+              />
+              <p class="mt-1 text-xs text-gray-500">Puedes adjuntar presupuesto, briefing, portfolio o documentos técnicos. Máximo 5 archivos de 10 MB.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button type="button" id="cancel-apply" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              Enviar candidatura
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#cancel-apply')?.addEventListener('click', () => {
+      modal.remove();
+    });
+
+    modal.querySelector('#apply-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+      const payload = new FormData();
+
+      payload.append('adId', targetAdId);
+      if (formData.get('coverLetter')) payload.append('coverLetter', formData.get('coverLetter') as string);
+      if (formData.get('proposedPrice')) payload.append('proposedPrice', formData.get('proposedPrice') as string);
+      if (formData.get('estimatedDays')) payload.append('estimatedDays', formData.get('estimatedDays') as string);
+
+      for (const file of formData.getAll('attachments')) {
+        if (file instanceof File && file.size > 0) {
+          payload.append('attachments', file);
+        }
+      }
+
+      try {
+        const response = await applicationApi.create(payload);
+        if (!response.success) {
+          throw new Error(response.error || 'No se pudo enviar la candidatura');
+        }
+
+        modal.remove();
+        await loadAdDetail();
+      } catch (error: any) {
+        alert(error?.message || 'Error al enviar la candidatura');
+      }
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+</script>

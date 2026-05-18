@@ -1,0 +1,166 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Valoraciones Recibidas">
+  <div id="reviews-content"></div>
+</DashboardLayout>
+
+<script>
+  import { reviewApi } from '../../../lib/api';
+  import { formatDate, formatRelativeTime } from '../../../lib/utils';
+
+  const container = document.getElementById('reviews-content');
+  let currentPage = 1;
+  const pageSize = 10;
+
+  function renderStars(rating: number): string {
+    return Array(5).fill(0).map((_, i) => `
+      <svg class="h-5 w-5 ${i < rating ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    `).join('');
+  }
+
+  async function loadReviews() {
+    try {
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('pageSize', pageSize.toString());
+
+      const response = await reviewApi.getReceived(params);
+      if (!response.success) throw new Error('Error');
+
+      const { items: reviews, total, totalPages } = response.data;
+
+      // Calculate stats
+      let avgRating = 0;
+      const ratingCounts = [0, 0, 0, 0, 0];
+
+      if (reviews.length > 0) {
+        const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+        avgRating = totalRating / reviews.length;
+        reviews.forEach((r: any) => {
+          ratingCounts[r.rating - 1]++;
+        });
+      }
+
+      container!.innerHTML = `
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900">Valoraciones Recibidas</h1>
+          <p class="mt-1 text-gray-600">${total} valoraciones en total</p>
+        </div>
+
+        ${reviews.length === 0 ? `
+          <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+            <p class="mt-4 text-gray-600">Aún no has recibido valoraciones</p>
+            <p class="mt-2 text-sm text-gray-500">Completa trabajos para recibir valoraciones de tus clientes</p>
+          </div>
+        ` : `
+          <!-- Stats summary -->
+          <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center gap-6">
+              <div class="text-center">
+                <p class="text-5xl font-bold text-gray-900">${avgRating.toFixed(1)}</p>
+                <div class="flex justify-center mt-2">
+                  ${renderStars(Math.round(avgRating))}
+                </div>
+                <p class="text-sm text-gray-500 mt-1">${total} valoraciones</p>
+              </div>
+              <div class="flex-1">
+                ${[5, 4, 3, 2, 1].map((stars) => {
+                  const count = ratingCounts[stars - 1];
+                  const percent = total > 0 ? (count / total) * 100 : 0;
+                  return `
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-sm text-gray-500 w-8">${stars} ★</span>
+                      <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-yellow-400 rounded-full" style="width: ${percent}%"></div>
+                      </div>
+                      <span class="text-sm text-gray-500 w-8">${count}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Reviews list -->
+          <div class="space-y-4">
+            ${reviews.map((review: any) => `
+              <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-start gap-4">
+                  <div class="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold flex-shrink-0">
+                    ${review.reviewer?.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '??'}
+                  </div>
+                  <div class="flex-1">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <p class="font-semibold text-gray-900">${review.reviewer?.fullName || 'Usuario'}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                          <div class="flex">
+                            ${renderStars(review.rating)}
+                          </div>
+                          <span class="text-sm text-gray-400">${formatRelativeTime(review.createdAt)}</span>
+                        </div>
+                      </div>
+                      <a href="/anuncios/${review.order?.ad?.id}" class="text-sm text-primary-600 hover:text-primary-700">
+                        ${review.order?.ad?.title || 'Ver proyecto'}
+                      </a>
+                    </div>
+                    ${review.comment ? `
+                      <p class="mt-3 text-gray-600">${review.comment}</p>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          ${totalPages > 1 ? `
+            <div class="mt-8 flex justify-center gap-2">
+              <button id="prev-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>
+                Anterior
+              </button>
+              <span class="px-4 py-2 text-gray-600">
+                Página ${currentPage} de ${totalPages}
+              </span>
+              <button id="next-page" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}>
+                Siguiente
+              </button>
+            </div>
+          ` : ''}
+        `}
+      `;
+
+      // Pagination handlers
+      document.getElementById('prev-page')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadReviews();
+        }
+      });
+
+      document.getElementById('next-page')?.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadReviews();
+        }
+      });
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar las valoraciones</p>
+          <button onclick="location.reload()" class="mt-4 text-primary-600 hover:text-primary-700">
+            Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  loadReviews();
+</script>

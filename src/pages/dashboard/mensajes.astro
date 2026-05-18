@@ -1,0 +1,467 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mensajes">
+  <div id="messages-content" class="h-[calc(100dvh-8rem)] min-h-0 overflow-hidden"></div>
+</DashboardLayout>
+
+<script>
+  import { authApi, conversationApi, getSocketUrl } from '../../lib/api';
+  import { formatRelativeTime } from '../../lib/utils';
+
+  const container = document.getElementById('messages-content');
+  const urlParams = new URLSearchParams(window.location.search);
+
+  let currentConversationId: string | null = urlParams.get('conversationId');
+  let currentUserId: string | null = null;
+  let socket: any = null;
+  let isSocketConnected = false;
+
+  function escapeHtml(value: unknown) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function getInitials(name?: string) {
+    const parts = (name || 'Usuario')
+      .split(' ')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    return parts.map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U';
+  }
+
+  function getOtherParticipant(conversation: any) {
+    return (
+      conversation.participants?.find((participant: any) => participant.userId !== currentUserId) ||
+      conversation.participants?.[0]
+    );
+  }
+
+  function getSenderId(message: any) {
+    return message.senderUserId || message.sender?.id;
+  }
+
+  function messageHtml(message: any) {
+    const isMine = getSenderId(message) === currentUserId;
+
+    return `
+      <div class="flex ${isMine ? 'justify-end' : 'justify-start'}" data-message-id="${escapeHtml(message.id)}">
+        <div class="max-w-[72%] rounded-2xl px-4 py-2.5 shadow-sm ${
+          isMine
+            ? 'bg-primary-600 text-white rounded-br-md'
+            : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
+        }">
+          <p class="break-words text-sm leading-6">${escapeHtml(message.body)}</p>
+          <p class="mt-1 text-[11px] ${isMine ? 'text-primary-100' : 'text-gray-500'}">
+            ${formatRelativeTime(message.sentAt)}
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  function updateConnectionBadge() {
+    const badge = document.getElementById('connection-status');
+    if (!badge) return;
+
+    badge.className = `inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+      isSocketConnected ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
+    }`;
+    badge.innerHTML = `
+      <span class="h-1.5 w-1.5 rounded-full ${isSocketConnected ? 'bg-green-500' : 'bg-gray-400'}"></span>
+      ${isSocketConnected ? 'En tiempo real' : 'Modo API'}
+    `;
+  }
+
+  function appendMessage(message: any) {
+    const messagesContainer = document.getElementById('messages-container');
+    if (!messagesContainer) return;
+
+    const shouldStickToBottom = isNearBottom(messagesContainer);
+    const isMine = getSenderId(message) === currentUserId;
+    const emptyState = messagesContainer.querySelector('[data-empty-messages]');
+    emptyState?.remove();
+
+    if (message.id && messagesContainer.querySelector(`[data-message-id="${CSS.escape(String(message.id))}"]`)) {
+      if (isMine || shouldStickToBottom) {
+        scrollMessagesToBottom('smooth');
+      }
+      return;
+    }
+
+    messagesContainer.insertAdjacentHTML('beforeend', messageHtml(message));
+
+    if (isMine || shouldStickToBottom) {
+      scrollMessagesToBottom('smooth');
+    }
+  }
+
+  function isNearBottom(element: HTMLElement, threshold = 120) {
+    return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+  }
+
+  function scrollMessagesToBottom(behavior: ScrollBehavior = 'auto') {
+    requestAnimationFrame(() => {
+      const messagesContainer = document.getElementById('messages-container');
+      if (!messagesContainer) return;
+
+      messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior,
+      });
+    });
+  }
+
+  function setChatError(message: string) {
+    const errorEl = document.getElementById('message-error');
+    if (!errorEl) return;
+
+    errorEl.textContent = message;
+    errorEl.classList.toggle('hidden', !message);
+  }
+
+  function showConversationPanel() {
+    document.getElementById('conversations-panel')?.classList.add('hidden', 'md:flex');
+    const chatPanel = document.getElementById('chat-panel');
+    chatPanel?.classList.remove('hidden');
+    chatPanel?.classList.add('flex');
+  }
+
+  function showConversationList() {
+    const conversationsPanel = document.getElementById('conversations-panel');
+    conversationsPanel?.classList.remove('hidden');
+    conversationsPanel?.classList.add('flex');
+    document.getElementById('chat-panel')?.classList.add('hidden', 'md:flex');
+  }
+
+  async function connectSocket() {
+    let io: any;
+
+    try {
+      ({ io } = await import(/* @vite-ignore */ `${getSocketUrl()}/socket.io/socket.io.esm.min.js`));
+    } catch (error) {
+      console.error('No se pudo cargar Socket.IO. El chat funcionara en modo API.', error);
+      isSocketConnected = false;
+      updateConnectionBadge();
+      return;
+    }
+
+    socket = io(getSocketUrl(), {
+      autoConnect: false,
+      withCredentials: true,
+    });
+
+    socket.on('connect', () => {
+      isSocketConnected = true;
+      updateConnectionBadge();
+      if (currentConversationId) {
+        socket?.emit('join:conversation', currentConversationId);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      isSocketConnected = false;
+      updateConnectionBadge();
+    });
+
+    socket.on('connect_error', () => {
+      isSocketConnected = false;
+      updateConnectionBadge();
+    });
+
+    socket.on('message:new', (message: any) => {
+      if (message.conversationId === currentConversationId) {
+        appendMessage(message);
+      } else if (!currentConversationId) {
+        loadConversations();
+      }
+    });
+
+    socket.on('message:error', (error: any) => {
+      setChatError(error?.message || 'No se pudo enviar el mensaje');
+    });
+
+    socket.connect();
+  }
+
+  function sendMessageOverSocket(conversationId: string, body: string) {
+    return new Promise((resolve, reject) => {
+      if (!socket?.connected) {
+        reject(new Error('socket-disconnected'));
+        return;
+      }
+
+      const timeout = window.setTimeout(() => {
+        reject(new Error('socket-timeout'));
+      }, 4000);
+
+      socket.emit('message:send', { conversationId, body }, (response: any) => {
+        window.clearTimeout(timeout);
+
+        if (response?.success) {
+          resolve(response.data);
+          return;
+        }
+
+        reject(new Error(response?.error || 'No se pudo enviar el mensaje'));
+      });
+    });
+  }
+
+  async function sendMessageWithFallback(conversationId: string, body: string) {
+    try {
+      return await sendMessageOverSocket(conversationId, body);
+    } catch (error: any) {
+      if (error?.message && !['socket-disconnected', 'socket-timeout'].includes(error.message)) {
+        throw error;
+      }
+
+      const response = await conversationApi.sendMessage(conversationId, body);
+      if (!response.success) {
+        throw new Error(response.error || 'No se pudo enviar el mensaje');
+      }
+
+      return response.data;
+    }
+  }
+
+  async function loadConversations() {
+    if (!container) return;
+
+    try {
+      const response = await conversationApi.list();
+      if (!response.success) throw new Error('Error');
+
+      const conversations = response.data.items;
+
+      container.innerHTML = `
+          <div class="flex h-full min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+          <div id="conversations-panel" class="${currentConversationId ? 'hidden md:flex' : 'flex'} min-h-0 w-full flex-col border-r border-gray-200 bg-white md:w-80 md:shrink-0">
+            <div class="shrink-0 border-b border-gray-200 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h1 class="text-lg font-semibold text-gray-900">Mensajes</h1>
+                  <p class="text-sm text-gray-500">${conversations.length} conversación${conversations.length === 1 ? '' : 'es'}</p>
+                </div>
+                <span id="connection-status" class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                  <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>
+                  Modo API
+                </span>
+              </div>
+            </div>
+
+            <div id="conversations-list" class="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+              ${conversations.length === 0 ? `
+                <div class="p-6 text-center text-sm text-gray-500">
+                  No tienes conversaciones todavía.
+                </div>
+              ` : conversations.map((conversation: any) => {
+                const otherParticipant = getOtherParticipant(conversation);
+                const participantName = otherParticipant?.user?.fullName || 'Usuario';
+                const isActive = conversation.id === currentConversationId;
+
+                return `
+                  <button
+                    class="conversation-item w-full border-b border-gray-100 p-4 text-left transition-colors ${
+                      isActive ? 'bg-primary-50' : 'hover:bg-gray-50'
+                    }"
+                    data-id="${escapeHtml(conversation.id)}"
+                  >
+                    <div class="flex items-center gap-3">
+                      <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+                        ${escapeHtml(getInitials(participantName))}
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-gray-900">${escapeHtml(conversation.ad?.title || 'Conversación')}</p>
+                        <p class="truncate text-xs text-gray-500">${escapeHtml(participantName)}</p>
+                        <p class="truncate text-sm text-gray-500">${escapeHtml(conversation.lastMessage?.body || 'Sin mensajes')}</p>
+                      </div>
+                      ${conversation.unreadCount > 0 ? `
+                        <span class="rounded-full bg-primary-600 px-2 py-0.5 text-xs text-white">
+                          ${conversation.unreadCount}
+                        </span>
+                      ` : ''}
+                    </div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div id="chat-panel" class="${currentConversationId ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col bg-gray-50 md:flex">
+            <div id="chat-area" class="flex min-h-0 flex-1 items-center justify-center text-gray-400">
+              <div class="text-center">
+                <svg class="mx-auto h-14 w-14 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p class="mt-4 text-sm">Selecciona una conversación</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.querySelectorAll('.conversation-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          const id = (item as HTMLElement).dataset.id;
+          if (id) loadConversation(id);
+        });
+      });
+
+      updateConnectionBadge();
+    } catch (error) {
+      container.innerHTML = `
+        <div class="flex h-full min-h-0 items-center justify-center rounded-xl border border-gray-200 bg-white py-12 text-center">
+          <p class="text-gray-600">Error al cargar las conversaciones</p>
+        </div>
+      `;
+    }
+  }
+
+  async function loadConversation(conversationId: string) {
+    currentConversationId = conversationId;
+    window.history.replaceState({}, '', `/dashboard/mensajes?conversationId=${conversationId}`);
+    socket?.emit('join:conversation', conversationId);
+    showConversationPanel();
+
+    const chatArea = document.getElementById('chat-area');
+    if (!chatArea) return;
+
+    try {
+      const response = await conversationApi.get(conversationId);
+      if (!response.success) throw new Error('Error');
+
+      const conversation = response.data;
+      const otherParticipant = getOtherParticipant(conversation);
+      const participantName = otherParticipant?.user?.fullName || 'Usuario';
+
+      chatArea.innerHTML = `
+        <div class="flex h-full min-h-0 w-full flex-col overflow-hidden">
+          <div class="shrink-0 border-b border-gray-200 bg-white p-4">
+            <div class="flex items-center gap-3">
+              <button id="back-to-conversations" class="rounded-lg border border-gray-200 p-2 text-gray-500 md:hidden" type="button">
+                <span class="sr-only">Volver</span>
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+                ${escapeHtml(getInitials(participantName))}
+              </div>
+              <div class="min-w-0">
+                <p class="truncate font-medium text-gray-900">${escapeHtml(conversation.ad?.title || 'Conversación')}</p>
+                <p class="truncate text-sm text-gray-500">${escapeHtml(participantName)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="messages-container" class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gray-50 p-4 [scrollbar-gutter:stable]">
+            ${conversation.messages?.length
+              ? conversation.messages.map(messageHtml).join('')
+              : '<p data-empty-messages class="py-10 text-center text-sm text-gray-500">No hay mensajes en esta conversación</p>'}
+          </div>
+
+          <form id="message-form" class="shrink-0 border-t border-gray-200 bg-white p-4">
+            <div class="flex min-w-0 gap-3">
+              <input
+                type="text"
+                name="message"
+                placeholder="Escribe un mensaje..."
+                class="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                autocomplete="off"
+              />
+              <button
+                type="submit"
+                id="send-message-btn"
+                class="shrink-0 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+              >
+                Enviar
+              </button>
+            </div>
+            <p id="message-error" class="mt-2 hidden text-sm text-red-600"></p>
+          </form>
+        </div>
+      `;
+
+      const messagesContainer = document.getElementById('messages-container');
+      if (messagesContainer) {
+        scrollMessagesToBottom();
+      }
+
+      document.getElementById('back-to-conversations')?.addEventListener('click', () => {
+        currentConversationId = null;
+        window.history.replaceState({}, '', '/dashboard/mensajes');
+        showConversationList();
+      });
+
+      document.getElementById('message-form')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const form = event.currentTarget as HTMLFormElement;
+        const input = form.querySelector('input[name="message"]') as HTMLInputElement;
+        const button = document.getElementById('send-message-btn') as HTMLButtonElement | null;
+        const message = input.value.trim();
+
+        if (!message || !currentConversationId) return;
+
+        setChatError('');
+        input.value = '';
+        input.disabled = true;
+        if (button) button.disabled = true;
+
+        try {
+          const sentMessage = await sendMessageWithFallback(currentConversationId, message);
+          appendMessage(sentMessage);
+        } catch (error: any) {
+          input.value = message;
+          setChatError(error?.message || 'No se pudo enviar el mensaje');
+        } finally {
+          input.disabled = false;
+          if (button) button.disabled = false;
+          input.focus();
+        }
+      });
+    } catch (error) {
+      chatArea.innerHTML = `
+        <div class="flex h-full items-center justify-center text-gray-500">
+          Error al cargar la conversación
+        </div>
+      `;
+    }
+  }
+
+  async function initMessages() {
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="flex h-full min-h-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
+        <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-100 border-t-primary-600"></div>
+      </div>
+    `;
+
+    try {
+      const userResponse = await authApi.me();
+      currentUserId = userResponse.data.id;
+      connectSocket();
+      await loadConversations();
+
+      if (currentConversationId) {
+        await loadConversation(currentConversationId);
+      }
+    } catch (error) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+    }
+  }
+
+  window.addEventListener('beforeunload', () => {
+    socket?.disconnect();
+  });
+
+  initMessages();
+</script>

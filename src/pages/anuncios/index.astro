@@ -1,0 +1,35 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { HeaderWithAuth } from '../../components/layout/HeaderWithAuth';
+import { Footer } from '../../components/layout/Footer';
+import { AdList } from '../../components/ads/AdList';
+
+const searchParams = Astro.url.searchParams;
+const initialFilters: Record<string, string> = {};
+searchParams.forEach((value, key) => {
+  initialFilters[key] = value;
+});
+---
+
+<Layout title="Anuncios">
+  <HeaderWithAuth client:only="react" currentPath="/anuncios" />
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">Anuncios</h1>
+      <p class="mt-2 text-gray-600">
+        Explora oportunidades y encuentra proyectos que se ajusten a tu perfil
+      </p>
+    </div>
+
+    <AdList
+      client:load
+      initialFilters={initialFilters}
+      showFilters={true}
+      showFavoriteButton={true}
+      emptyMessage="No se encontraron anuncios con los filtros seleccionados"
+    />
+  </main>
+
+  <Footer client:load />
+</Layout>

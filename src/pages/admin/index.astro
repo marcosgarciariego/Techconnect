@@ -1,0 +1,119 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Panel de administración">
+  <div id="admin-content"></div>
+</AdminLayout>
+
+<script>
+  import { adminApi } from '../../lib/api';
+
+  const container = document.getElementById('admin-content');
+
+  async function loadDashboard() {
+    try {
+      const response = await adminApi.getStats();
+      if (!response.success) throw new Error('Error');
+
+      const stats = response.data;
+
+      container!.innerHTML = `
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900">Panel de administración</h1>
+          <p class="mt-1 text-gray-600">Gestiona la plataforma TechConnect</p>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Total usuarios</p>
+                <p class="text-3xl font-bold text-gray-900">${stats.totalUsers}</p>
+              </div>
+              <div class="p-3 bg-blue-100 rounded-lg">
+                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+            </div>
+            <p class="mt-4 text-sm text-green-600">+${stats.recentUsers} nuevos esta semana</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Total anuncios</p>
+                <p class="text-3xl font-bold text-gray-900">${stats.totalAds}</p>
+              </div>
+              <div class="p-3 bg-green-100 rounded-lg">
+                <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+            </div>
+            <p class="mt-4 text-sm text-gray-500">${stats.activeAds} activos</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Total órdenes</p>
+                <p class="text-3xl font-bold text-gray-900">${stats.totalOrders}</p>
+              </div>
+              <div class="p-3 bg-yellow-100 rounded-lg">
+                <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p class="mt-4 text-sm text-gray-500">${stats.completedOrders} completadas</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Categorías</p>
+                <p class="text-3xl font-bold text-gray-900">${stats.totalCategories}</p>
+              </div>
+              <div class="p-3 bg-purple-100 rounded-lg">
+                <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <a href="/admin/usuarios" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-primary-300 hover:shadow-md transition-all">
+            <h3 class="font-semibold text-gray-900">Gestionar usuarios</h3>
+            <p class="mt-1 text-sm text-gray-500">Ver, activar o desactivar usuarios</p>
+          </a>
+          <a href="/admin/anuncios" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-primary-300 hover:shadow-md transition-all">
+            <h3 class="font-semibold text-gray-900">Gestionar anuncios</h3>
+            <p class="mt-1 text-sm text-gray-500">Moderar y administrar anuncios</p>
+          </a>
+          <a href="/admin/categorias" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-primary-300 hover:shadow-md transition-all">
+            <h3 class="font-semibold text-gray-900">Categorías</h3>
+            <p class="mt-1 text-sm text-gray-500">Añadir o editar categorías</p>
+          </a>
+          <a href="/admin/auditoria" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-primary-300 hover:shadow-md transition-all">
+            <h3 class="font-semibold text-gray-900">Auditoría</h3>
+            <p class="mt-1 text-sm text-gray-500">Ver registro de actividades</p>
+          </a>
+        </div>
+      `;
+    } catch (error) {
+      container!.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-gray-600">Error al cargar el dashboard</p>
+        </div>
+      `;
+    }
+  }
+
+  loadDashboard();
+</script>
