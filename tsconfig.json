@@ -22,6 +22,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": [".astro/types.d.ts", "src/**/*", "server/**/*", "api/**/*", "prisma/**/*"],
+  "include": [".astro/types.d.ts", "src/**/*", "server/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist"]
 }
