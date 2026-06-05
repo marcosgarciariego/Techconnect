@@ -72,8 +72,12 @@ cp .env.example .env
 Edita el archivo `.env`:
 
 ```env
-# Database - Configura tu conexión MySQL
-DATABASE_URL="mysql://usuario:contraseña@localhost:3306/techconnect"
+# Database - desarrollo local
+DATABASE_URL="mysql://usuario:password@localhost:3306/techconnect"
+#
+# Database - produccion/Vercel
+# Usa una MySQL online, nunca localhost:
+# DATABASE_URL="mysql://usuario:password@host-publico:3306/techconnect"
 
 # JWT Secret - Genera una clave segura para producción
 JWT_SECRET="tu-clave-secreta-muy-larga-y-segura"
@@ -87,6 +91,7 @@ NODE_ENV="development"
 FRONTEND_URL="http://localhost:4321"
 
 # API URL (para el frontend)
+# En Vercel produccion usa PUBLIC_API_URL="/api"
 PUBLIC_API_URL="http://localhost:3001/api"
 PUBLIC_SOCKET_URL="http://localhost:3001"
 ```
@@ -103,6 +108,49 @@ npm run db:push
 ```
 
 Opción B: Ejecutar el SQL manualmente en MySQL
+
+### 4.1. Usar una base de datos online en Vercel
+
+Para que la web desplegada funcione, crea una base MySQL online compatible con Prisma. Opciones validas: Railway MySQL, PlanetScale, TiDB Cloud, Aiven MySQL o cualquier hosting MySQL con host publico.
+
+Cuando el proveedor te de la URL de conexion, debe tener este formato:
+
+```env
+DATABASE_URL="mysql://usuario:password@host-publico:3306/techconnect"
+```
+
+No uses `localhost`, `127.0.0.1` ni el nombre de tu PC en Vercel.
+
+En Vercel, en `Settings > Environment Variables`, anade estas variables en `Production` y, si usas despliegues de prueba, tambien en `Preview`:
+
+```env
+DATABASE_URL="mysql://usuario:password@host-publico:3306/techconnect"
+JWT_SECRET="una_clave_larga_random_de_32_o_mas_caracteres"
+JWT_EXPIRES_IN="7d"
+PUBLIC_API_URL="/api"
+```
+
+Despues de guardar las variables, crea las tablas y datos demo en la base online desde tu terminal:
+
+```powershell
+$env:DATABASE_URL="mysql://usuario:password@host-publico:3306/techconnect"
+npm run db:deploy
+npm run db:seed
+```
+
+Para ver la base online en Prisma Studio:
+
+```powershell
+$env:DATABASE_URL="mysql://usuario:password@host-publico:3306/techconnect"
+npm run db:studio
+```
+
+Luego haz `Redeploy` en Vercel y comprueba:
+
+```text
+https://tu-dominio.vercel.app/api/health
+https://tu-dominio.vercel.app/api/ads
+```
 
 ### 5. Poblar con datos de prueba (opcional pero recomendado)
 
@@ -134,9 +182,10 @@ Después de ejecutar el seed:
 | Rol | Email | Contraseña |
 |-----|-------|------------|
 | Admin | admin@techconnect.com | password123 |
-| Cliente | cliente@example.com | password123 |
-| Profesional | profesional@example.com | password123 |
-| Profesional 2 | dev@example.com | password123 |
+| Cliente | cliente.demo@techconnect.com | password123 |
+| Profesional | profesional.demo@techconnect.com | password123 |
+| Cliente 2 | marta.cliente@techconnect.com | password123 |
+| Profesional 2 | ana.pro@techconnect.com | password123 |
 
 ## Estructura del proyecto
 
@@ -185,6 +234,8 @@ techconnect/
 | `npm run build` | Compila para producción |
 | `npm run db:generate` | Genera cliente Prisma |
 | `npm run db:push` | Aplica schema a DB |
+| `npm run db:deploy` | Aplica schema a una DB online configurada en `DATABASE_URL` |
+| `npm run db:deploy:seed` | Aplica schema y carga datos demo en la DB configurada |
 | `npm run db:migrate` | Crea migración |
 | `npm run db:seed` | Ejecuta seed de datos |
 | `npm run db:studio` | Abre Prisma Studio |
