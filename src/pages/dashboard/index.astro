@@ -198,6 +198,12 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
       const user = userResponse.data;
       const isClient = user.roles.includes('client');
       const isProfessional = user.roles.includes('professional');
+      const isAdmin = user.roles.includes('admin');
+
+      if (isAdmin) {
+        window.location.href = '/admin';
+        return;
+      }
 
       const [adsRes, appsRes, ordersRes, notifRes, messagesRes] = await Promise.all([
         isClient ? adApi.getUserAds() : Promise.resolve({ success: true, data: { total: 0 } }),

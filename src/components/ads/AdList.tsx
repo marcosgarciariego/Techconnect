@@ -4,7 +4,7 @@ import { AdFilters } from './AdFilters';
 import { Pagination } from '../ui/Pagination';
 import { Spinner } from '../ui/Spinner';
 import { Alert } from '../ui/Alert';
-import { adApi, favoriteApi } from '../../lib/api';
+import { adApi, favoriteApi, authApi } from '../../lib/api';
 import { getErrorMessage } from '../../lib/utils';
 
 interface Ad {
@@ -47,6 +47,7 @@ export function AdList({
     total: 0,
     totalPages: 0,
   });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchAds = useCallback(async () => {
     setIsLoading(true);
@@ -77,6 +78,17 @@ export function AdList({
   }, [filters, pagination.page, pagination.pageSize]);
 
   useEffect(() => {
+    // Hide favorite button for admin users
+    (async () => {
+      try {
+        const res = await authApi.validate();
+        if (res?.success && res.data?.user?.roles?.includes('admin')) {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
     fetchAds();
   }, [fetchAds]);
 
@@ -143,7 +155,7 @@ export function AdList({
               <AdCard
                 key={ad.id}
                 ad={ad}
-                onFavoriteToggle={showFavoriteButton ? handleFavoriteToggle : undefined}
+                onFavoriteToggle={showFavoriteButton && !isAdmin ? handleFavoriteToggle : undefined}
               />
             ))}
           </div>

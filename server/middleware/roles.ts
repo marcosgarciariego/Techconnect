@@ -22,11 +22,11 @@ export function requireRoles(...allowedRoles: string[]) {
 }
 
 export function requireClient(req: Request, res: Response, next: NextFunction): void {
-  return requireRoles('client', 'admin')(req, res, next);
+  return requireRoles('client')(req, res, next);
 }
 
 export function requireProfessional(req: Request, res: Response, next: NextFunction): void {
-  return requireRoles('professional', 'admin')(req, res, next);
+  return requireRoles('professional')(req, res, next);
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {

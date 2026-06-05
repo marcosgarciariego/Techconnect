@@ -31,6 +31,7 @@ export function Header({ currentPath = '' }: HeaderProps) {
   ];
   const isProfessional = user?.roles.includes('professional');
   const isClient = user?.roles.includes('client');
+  const isAdmin = user?.roles.includes('admin');
   const roleLabel = isProfessional ? 'Profesional' : isClient ? 'Cliente' : 'Cuenta';
   const roleBadgeClass = isProfessional
     ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
@@ -75,16 +76,18 @@ export function Header({ currentPath = '' }: HeaderProps) {
             {isAuthenticated ? (
               <>
                 {/* Messages */}
-                <a
-                  href={isProfessional ? '/dashboard/profesional/explorar' : '/dashboard/cliente/nuevo-anuncio'}
-                  className={`hidden rounded-lg px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${
-                    isProfessional
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {isProfessional ? 'Buscar proyectos' : 'Crear anuncio'}
-                </a>
+                {(!isAdmin && (isProfessional || isClient)) && (
+                  <a
+                    href={isProfessional ? '/dashboard/profesional/explorar' : '/dashboard/cliente/nuevo-anuncio'}
+                    className={`hidden rounded-lg px-3 py-2 text-sm font-semibold transition-colors lg:inline-flex ${
+                      isProfessional
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {isProfessional ? 'Buscar proyectos' : 'Crear anuncio'}
+                  </a>
+                )}
 
                 <a
                   href="/dashboard/mensajes"
