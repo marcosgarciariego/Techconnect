@@ -45,10 +45,60 @@ const adminLinks = [
             ))}
           </nav>
 
-          <div class="flex items-center space-x-4">
-            <a href="/admin" class="text-sm text-gray-600 hover:text-gray-900">
-              Panel admin
-            </a>
+          <div id="admin-user-menu" class="relative flex items-center">
+            <button
+              id="admin-user-menu-button"
+              type="button"
+              class="flex items-center gap-2 rounded-full px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <img
+                id="admin-avatar-image"
+                class="hidden h-9 w-9 rounded-full object-cover ring-1 ring-gray-200"
+                alt="Administrador"
+              />
+              <span
+                id="admin-avatar-initials"
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 ring-1 ring-primary-200"
+              >
+                A
+              </span>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div
+              id="admin-user-menu-dropdown"
+              class="absolute right-0 top-full z-50 mt-2 hidden w-64 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
+              role="menu"
+            >
+              <div class="border-b border-gray-100 px-4 py-3">
+                <p id="admin-user-name" class="truncate text-sm font-semibold text-gray-900">Administrador</p>
+                <p id="admin-user-email" class="truncate text-xs text-gray-500"></p>
+              </div>
+              <div class="py-1 md:hidden">
+                {adminLinks.map((link) => (
+                  <a href={link.href} class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" role="menuitem">
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+              <div class="border-t border-gray-100 py-1 md:border-t-0">
+                <a href="/dashboard/perfil" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" role="menuitem">
+                  Mi perfil
+                </a>
+                <button
+                  id="admin-logout-button"
+                  type="button"
+                  class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
+                  role="menuitem"
+                >
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -85,6 +135,62 @@ const adminLinks = [
 <script>
   import { authApi } from '../lib/api';
 
+  const menu = document.getElementById('admin-user-menu');
+  const menuButton = document.getElementById('admin-user-menu-button');
+  const menuDropdown = document.getElementById('admin-user-menu-dropdown');
+  const avatarImage = document.getElementById('admin-avatar-image') as HTMLImageElement | null;
+  const avatarInitials = document.getElementById('admin-avatar-initials');
+  const adminUserName = document.getElementById('admin-user-name');
+  const adminUserEmail = document.getElementById('admin-user-email');
+  const logoutButton = document.getElementById('admin-logout-button');
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const initials = parts.slice(0, 2).map((part) => part[0]).join('');
+    return initials.toUpperCase() || 'A';
+  };
+
+  const setMenuOpen = (isOpen: boolean) => {
+    menuDropdown?.classList.toggle('hidden', !isOpen);
+    menuButton?.setAttribute('aria-expanded', String(isOpen));
+  };
+
+  menuButton?.addEventListener('click', () => {
+    const isOpen = menuButton.getAttribute('aria-expanded') === 'true';
+    setMenuOpen(!isOpen);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (menu && !menu.contains(event.target as Node)) {
+      setMenuOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      setMenuOpen(false);
+    }
+  });
+
+  logoutButton?.addEventListener('click', async () => {
+    await authApi.logout();
+    window.location.href = '/';
+  });
+
+  const renderAdminUser = (user: any) => {
+    const fullName = user.fullName || 'Administrador';
+    adminUserName!.textContent = fullName;
+    adminUserEmail!.textContent = user.email || '';
+    avatarInitials!.textContent = getInitials(fullName);
+
+    if (user.avatarUrl && avatarImage) {
+      avatarImage.src = user.avatarUrl;
+      avatarImage.alt = fullName;
+      avatarImage.classList.remove('hidden');
+      avatarInitials?.classList.add('hidden');
+    }
+  };
+
   const checkAdminAuth = async () => {
     try {
       const data = await authApi.validate();
@@ -95,7 +201,10 @@ const adminLinks = [
 
       if (!data.data.user.roles.includes('admin')) {
         window.location.href = '/dashboard';
+        return;
       }
+
+      renderAdminUser(data.data.user);
     } catch (error) {
       window.location.href = '/login';
     }
