@@ -567,6 +567,29 @@ export const POST: APIRoute = async ({ request }) => {
       }, 201);
     }
 
+    const adImageMatch = pathname.match(/^\/ads\/([^/]+)\/images$/);
+    if (adImageMatch) {
+      const user = await requireAuthenticatedUser(request);
+      const body = await readJsonBody(request);
+      const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+
+      if (!imageUrl) {
+        throw new AppError('La URL de la imagen es requerida', 400);
+      }
+
+      const image = await adService.addAdImage(
+        BigInt(adImageMatch[1]),
+        user.id,
+        imageUrl,
+        body.isMain !== false
+      );
+
+      return json({
+        success: true,
+        data: serializeAdImage(image),
+      }, 201);
+    }
+
     if (pathname === '/applications') {
       const user = await requireAuthenticatedUser(request);
       requireRole(user, 'professional', 'admin');

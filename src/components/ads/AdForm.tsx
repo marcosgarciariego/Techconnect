@@ -40,6 +40,8 @@ export function AdForm({ initialData, onSuccess }: AdFormProps) {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
 
   useEffect(() => {
     categoryApi
@@ -57,6 +59,37 @@ export function AdForm({ initialData, onSuccess }: AdFormProps) {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setError('');
+
+    if (!file) {
+      setPhotoFile(null);
+      setPhotoPreview('');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      e.target.value = '';
+      setPhotoFile(null);
+      setPhotoPreview('');
+      setError('Selecciona un archivo de imagen valido');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      e.target.value = '';
+      setPhotoFile(null);
+      setPhotoPreview('');
+      setError('La foto no puede superar los 2 MB');
+      return;
+    }
+
+    const preview = await readFileAsDataUrl(file);
+    setPhotoFile(file);
+    setPhotoPreview(preview);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,6 +139,13 @@ export function AdForm({ initialData, onSuccess }: AdFormProps) {
       }
 
       if (response.success) {
+        if (photoPreview) {
+          await adApi.addImage(response.data.id, {
+            imageUrl: photoPreview,
+            isMain: true,
+          });
+        }
+
         onSuccess?.(response.data);
         if (!isEditing) {
           window.location.href = '/dashboard/cliente/anuncios';
@@ -220,6 +260,32 @@ export function AdForm({ initialData, onSuccess }: AdFormProps) {
         />
       </div>
 
+      <div>
+        <label htmlFor="photo" className="mb-1 block text-sm font-medium text-gray-700">
+          Foto del anuncio
+        </label>
+        <input
+          id="photo"
+          name="photo"
+          type="file"
+          accept="image/*"
+          onChange={handlePhotoChange}
+          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Opcional. JPG, PNG o WebP. Maximo 2 MB.
+        </p>
+        {photoPreview && (
+          <div className="mt-3 overflow-hidden rounded-lg border border-gray-200">
+            <img
+              src={photoPreview}
+              alt={photoFile?.name || 'Vista previa de la foto'}
+              className="h-48 w-full object-cover"
+            />
+          </div>
+        )}
+      </div>
+
       {isEditing && (
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Estado</label>
@@ -247,4 +313,13 @@ export function AdForm({ initialData, onSuccess }: AdFormProps) {
       </div>
     </form>
   );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('No se pudo leer la foto'));
+    reader.readAsDataURL(file);
+  });
 }

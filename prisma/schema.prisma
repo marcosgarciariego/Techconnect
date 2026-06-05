@@ -114,7 +114,7 @@ model Ad {
 model AdImage {
   id        BigInt   @id @default(autoincrement())
   adId      BigInt   @map("ad_id")
-  imageUrl  String   @map("image_url") @db.Text
+  imageUrl  String   @map("image_url") @db.LongText
   isMain    Boolean  @default(false) @map("is_main")
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")

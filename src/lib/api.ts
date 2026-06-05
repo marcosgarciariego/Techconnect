@@ -208,6 +208,8 @@ export const adApi = {
   update: (id: string, data: any) =>
     api(`/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => api(`/ads/${id}`, { method: 'DELETE' }),
+  addImage: (id: string, data: { imageUrl: string; isMain?: boolean }) =>
+    api(`/ads/${id}/images`, { method: 'POST', body: JSON.stringify(data) }),
   getUserAds: (params?: URLSearchParams) =>
     api(`/ads/user/mine?${params?.toString() || ''}`),
 };
