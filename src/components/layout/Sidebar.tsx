@@ -13,18 +13,59 @@ interface NavItem {
 
 export function Sidebar({ currentPath = '' }: SidebarProps) {
   const { user } = useAuth();
+  const isAdmin = user?.roles.includes('admin');
   const isProfessional = user?.roles.includes('professional');
   const isClient = user?.roles.includes('client');
-  const roleLabel = isProfessional ? 'Ofreces servicios' : isClient ? 'Solicitas servicios' : 'Panel';
-  const roleDescription = isProfessional
-    ? 'Captacion, propuestas y trabajos'
-    : 'Anuncios, candidaturas y ordenes';
-  const rolePanelClass = isProfessional
-    ? 'bg-emerald-50 text-emerald-900 ring-emerald-100'
-    : 'bg-blue-50 text-blue-900 ring-blue-100';
-  const activeLinkClass = isProfessional
-    ? 'bg-emerald-50 text-emerald-700'
-    : 'bg-blue-50 text-blue-700';
+  const roleLabel = isAdmin
+    ? 'Administrador'
+    : isProfessional
+      ? 'Ofreces servicios'
+      : isClient
+        ? 'Solicitas servicios'
+        : 'Panel';
+  const roleDescription = isAdmin
+    ? 'Moderacion, usuarios y auditoria'
+    : isProfessional
+      ? 'Captacion, propuestas y trabajos'
+      : 'Anuncios, candidaturas y ordenes';
+  const rolePanelClass = isAdmin
+    ? 'bg-red-50 text-red-900 ring-red-100'
+    : isProfessional
+      ? 'bg-emerald-50 text-emerald-900 ring-emerald-100'
+      : 'bg-blue-50 text-blue-900 ring-blue-100';
+  const activeLinkClass = isAdmin
+    ? 'bg-red-50 text-red-700'
+    : isProfessional
+      ? 'bg-emerald-50 text-emerald-700'
+      : 'bg-blue-50 text-blue-700';
+
+  const adminLinks: NavItem[] = [
+    {
+      href: '/admin',
+      label: 'Dashboard admin',
+      icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    },
+    {
+      href: '/admin/usuarios',
+      label: 'Usuarios',
+      icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+    },
+    {
+      href: '/admin/anuncios',
+      label: 'Anuncios',
+      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+    },
+    {
+      href: '/admin/categorias',
+      label: 'Categorias',
+      icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+    },
+    {
+      href: '/admin/auditoria',
+      label: 'Auditoria',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    },
+  ];
 
   const generalLinks: NavItem[] = [
     {
@@ -144,6 +185,26 @@ export function Sidebar({ currentPath = '' }: SidebarProps) {
 
   const filteredClientLinks = filterByRole(clientLinks);
   const filteredProfessionalLinks = filterByRole(professionalLinks);
+
+  if (isAdmin) {
+    return (
+      <aside className="h-[calc(100dvh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-gray-200 bg-white">
+        <nav className="p-4 space-y-6">
+          <div className={`rounded-lg p-4 ring-1 ${rolePanelClass}`}>
+            <p className="text-sm font-semibold">{roleLabel}</p>
+            <p className="mt-1 text-xs opacity-75">{roleDescription}</p>
+          </div>
+
+          <div>
+            <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Administracion
+            </h3>
+            <div className="space-y-1">{adminLinks.map(renderLink)}</div>
+          </div>
+        </nav>
+      </aside>
+    );
+  }
 
   return (
     <aside className="h-[calc(100dvh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-gray-200 bg-white">

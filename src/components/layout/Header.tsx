@@ -15,7 +15,7 @@ export function Header({ currentPath = '' }: HeaderProps) {
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !user?.roles.includes('admin')) {
       notificationApi.getUnreadCount().then((res) => {
         if (res.success) setUnreadNotifications(res.data.count);
       });
@@ -23,7 +23,7 @@ export function Header({ currentPath = '' }: HeaderProps) {
         if (res.success) setUnreadMessages(res.data.count);
       });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const navLinks = [
     { href: '/', label: 'Inicio' },
@@ -32,10 +32,14 @@ export function Header({ currentPath = '' }: HeaderProps) {
   const isProfessional = user?.roles.includes('professional');
   const isClient = user?.roles.includes('client');
   const isAdmin = user?.roles.includes('admin');
-  const roleLabel = isProfessional ? 'Profesional' : isClient ? 'Cliente' : 'Cuenta';
-  const roleBadgeClass = isProfessional
-    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-    : 'bg-blue-50 text-blue-700 ring-blue-200';
+  const roleLabel = isAdmin ? 'Admin' : isProfessional ? 'Profesional' : isClient ? 'Cliente' : 'Cuenta';
+  const roleBadgeClass = isAdmin
+    ? 'bg-red-50 text-red-700 ring-red-200'
+    : isProfessional
+      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+      : 'bg-blue-50 text-blue-700 ring-blue-200';
+  const primaryDashboardHref = isAdmin ? '/admin' : '/dashboard';
+  const primaryDashboardLabel = isAdmin ? 'Panel Admin' : 'Dashboard';
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -89,44 +93,47 @@ export function Header({ currentPath = '' }: HeaderProps) {
                   </a>
                 )}
 
-                <a
-                  href="/dashboard/mensajes"
-                  className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  {unreadMessages > 0 && (
-                    <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                      {unreadMessages > 9 ? '9+' : unreadMessages}
-                    </span>
-                  )}
-                </a>
+                {!isAdmin && (
+                  <>
+                    <a
+                      href="/dashboard/mensajes"
+                      className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                      </svg>
+                      {unreadMessages > 0 && (
+                        <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                          {unreadMessages > 9 ? '9+' : unreadMessages}
+                        </span>
+                      )}
+                    </a>
 
-                {/* Notifications */}
-                <a
-                  href="/dashboard/notificaciones"
-                  className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    />
-                  </svg>
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                    </span>
-                  )}
-                </a>
+                    <a
+                      href="/dashboard/notificaciones"
+                      className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                        />
+                      </svg>
+                      {unreadNotifications > 0 && (
+                        <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                          {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                        </span>
+                      )}
+                    </a>
+                  </>
+                )}
 
                 {/* Profile dropdown */}
                 <div className="relative">
@@ -170,10 +177,10 @@ export function Header({ currentPath = '' }: HeaderProps) {
                           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                         </div>
                         <a
-                          href="/dashboard"
+                          href={primaryDashboardHref}
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
-                          Dashboard
+                          {primaryDashboardLabel}
                         </a>
                         <a
                           href="/dashboard/perfil"
@@ -181,12 +188,12 @@ export function Header({ currentPath = '' }: HeaderProps) {
                         >
                           Mi perfil
                         </a>
-                        {user?.roles.includes('admin') && (
+                        {isAdmin && (
                           <a
                             href="/admin"
                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
-                            Panel Admin
+                            Gestionar plataforma
                           </a>
                         )}
                         <hr className="my-1" />

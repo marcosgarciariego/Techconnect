@@ -7,6 +7,8 @@ import * as adService from '../../../server/services/adService';
 import type { ApplicationAttachmentInput } from '../../../server/services/applicationService';
 import * as applicationService from '../../../server/services/applicationService';
 import * as authService from '../../../server/services/authService';
+import * as auditService from '../../../server/services/auditService';
+import prisma from '../../../server/config/database';
 import * as conversationService from '../../../server/services/conversationService';
 import * as favoriteService from '../../../server/services/favoriteService';
 import * as notificationService from '../../../server/services/notificationService';
@@ -17,6 +19,7 @@ import { AppError } from '../../../server/middleware/errorHandler';
 import { verifyToken } from '../../../server/middleware/auth';
 import {
   adFiltersSchema,
+  categorySchema,
   createAdSchema,
   createApplicationMultipartSchema,
   createApplicationSchema,
@@ -511,6 +514,114 @@ export const GET: APIRoute = async ({ request }) => {
       });
     }
 
+    if (pathname === '/admin/stats') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+
+      const [totalUsers, totalAds, totalOrders, totalCategories, activeAds, completedOrders, recentUsers] =
+        await Promise.all([
+          prisma.user.count(),
+          prisma.ad.count(),
+          prisma.serviceOrder.count(),
+          prisma.category.count(),
+          prisma.ad.count({ where: { status: 'active' } }),
+          prisma.serviceOrder.count({ where: { status: 'completed' } }),
+          prisma.user.count({
+            where: {
+              createdAt: {
+                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+              },
+            },
+          }),
+        ]);
+
+      return json({
+        success: true,
+        data: {
+          totalUsers,
+          totalAds,
+          totalOrders,
+          totalCategories,
+          activeAds,
+          completedOrders,
+          recentUsers,
+        },
+      });
+    }
+
+    if (pathname === '/admin/users') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const isActiveParam = url.searchParams.get('isActive');
+      const result = await userService.listAllUsers(
+        getQueryNumber(url, 'page', 1),
+        getQueryNumber(url, 'pageSize', 20),
+        url.searchParams.get('search') || undefined,
+        url.searchParams.get('role') || undefined,
+        isActiveParam === null ? undefined : isActiveParam === 'true'
+      );
+
+      return json({
+        success: true,
+        data: result,
+      });
+    }
+
+    if (pathname === '/admin/ads') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const result = await adService.listAllAds(
+        getQueryNumber(url, 'page', 1),
+        getQueryNumber(url, 'pageSize', 20),
+        url.searchParams.get('search') || undefined,
+        url.searchParams.get('status') || undefined,
+        url.searchParams.get('categoryId') || undefined
+      );
+
+      return json({
+        success: true,
+        data: {
+          ...result,
+          items: result.items.map(serializeAd),
+        },
+      });
+    }
+
+    if (pathname === '/admin/audit-logs') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const result = await auditService.getAuditLogs(
+        getQueryNumber(url, 'page', 1),
+        getQueryNumber(url, 'pageSize', 50),
+        {
+          userId: url.searchParams.get('userId') || undefined,
+          action: url.searchParams.get('action') || undefined,
+          entityType: url.searchParams.get('entityType') || undefined,
+          startDate: url.searchParams.get('startDate') || undefined,
+          endDate: url.searchParams.get('endDate') || undefined,
+        }
+      );
+
+      return json({
+        success: true,
+        data: {
+          ...result,
+          items: result.items.map(serializeAuditLog),
+        },
+      });
+    }
+
+    if (pathname === '/admin/audit-logs/recent') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const logs = await auditService.getRecentAuditLogs(getQueryNumber(url, 'limit', 10));
+
+      return json({
+        success: true,
+        data: logs.map(serializeAuditLog),
+      });
+    }
+
     return json({ success: false, error: 'Recurso no encontrado' }, 404);
   } catch (error) {
     return handleApiError(error);
@@ -697,6 +808,52 @@ export const POST: APIRoute = async ({ request }) => {
       }, 201);
     }
 
+    const adminUserRoleMatch = pathname.match(/^\/admin\/users\/([^/]+)\/roles$/);
+    if (adminUserRoleMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const body = await readJsonBody(request);
+
+      if (typeof body.roleName !== 'string' || !body.roleName.trim()) {
+        throw new AppError('El rol es obligatorio', 400);
+      }
+
+      const roleName = body.roleName.trim();
+      const userId = BigInt(adminUserRoleMatch[1]);
+      await userService.addRoleToUser(userId, roleName);
+      await auditService.createAuditLog(
+        user.id,
+        'ADD_ROLE',
+        'User',
+        userId,
+        `Rol anadido: ${roleName}`
+      );
+
+      return json({
+        success: true,
+        message: 'Rol anadido correctamente',
+      });
+    }
+
+    if (pathname === '/admin/categories') {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const { name, description } = categorySchema.parse(await readJsonBody(request));
+      const category = await adService.createCategory(name, description);
+      await auditService.createAuditLog(
+        user.id,
+        'CREATE',
+        'Category',
+        category.id,
+        `Categoria creada: ${name}`
+      );
+
+      return json({
+        success: true,
+        data: serializeCategory(category),
+      }, 201);
+    }
+
     return json({ success: false, error: 'Recurso no encontrado' }, 404);
   } catch (error) {
     return handleApiError(error);
@@ -740,6 +897,27 @@ export const PUT: APIRoute = async ({ request }) => {
       return json({
         success: true,
         data: serializeAd(ad),
+      });
+    }
+
+    const adminCategoryMatch = pathname.match(/^\/admin\/categories\/([^/]+)$/);
+    if (adminCategoryMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const { name, description } = categorySchema.parse(await readJsonBody(request));
+      const categoryId = BigInt(adminCategoryMatch[1]);
+      const category = await adService.updateCategory(categoryId, name, description);
+      await auditService.createAuditLog(
+        user.id,
+        'UPDATE',
+        'Category',
+        categoryId,
+        `Categoria actualizada: ${name}`
+      );
+
+      return json({
+        success: true,
+        data: serializeCategory(category),
       });
     }
 
@@ -800,6 +978,55 @@ export const PATCH: APIRoute = async ({ request }) => {
       });
     }
 
+    const adminToggleUserMatch = pathname.match(/^\/admin\/users\/([^/]+)\/toggle-active$/);
+    if (adminToggleUserMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const body = await readJsonBody(request);
+
+      if (typeof body.isActive !== 'boolean') {
+        throw new AppError('El estado isActive es obligatorio', 400);
+      }
+
+      const updatedUser = await userService.toggleUserActive(BigInt(adminToggleUserMatch[1]), body.isActive);
+      await auditService.createAuditLog(
+        user.id,
+        body.isActive ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
+        'User',
+        updatedUser.id,
+        `Usuario ${body.isActive ? 'activado' : 'desactivado'}: ${updatedUser.email}`
+      );
+
+      return json({
+        success: true,
+        data: {
+          id: updatedUser.id.toString(),
+          isActive: updatedUser.isActive,
+        },
+      });
+    }
+
+    const adminAdStatusMatch = pathname.match(/^\/admin\/ads\/([^/]+)\/status$/);
+    if (adminAdStatusMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const body = await readJsonBody(request);
+
+      if (typeof body.status !== 'string' || !body.status.trim()) {
+        throw new AppError('El estado es obligatorio', 400);
+      }
+
+      const ad = await adService.updateAdStatus(BigInt(adminAdStatusMatch[1]), body.status.trim(), user.id);
+
+      return json({
+        success: true,
+        data: {
+          id: ad.id.toString(),
+          status: ad.status,
+        },
+      });
+    }
+
     return json({ success: false, error: 'Recurso no encontrado' }, 404);
   } catch (error) {
     return handleApiError(error);
@@ -845,6 +1072,59 @@ export const DELETE: APIRoute = async ({ request }) => {
       return json({
         success: true,
         message: 'Anuncio eliminado correctamente',
+      });
+    }
+
+    const adminUserRoleMatch = pathname.match(/^\/admin\/users\/([^/]+)\/roles\/([^/]+)$/);
+    if (adminUserRoleMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const userId = BigInt(adminUserRoleMatch[1]);
+      const roleName = decodeURIComponent(adminUserRoleMatch[2]);
+      await userService.removeRoleFromUser(userId, roleName);
+      await auditService.createAuditLog(
+        user.id,
+        'REMOVE_ROLE',
+        'User',
+        userId,
+        `Rol eliminado: ${roleName}`
+      );
+
+      return json({
+        success: true,
+        message: 'Rol eliminado correctamente',
+      });
+    }
+
+    const adminAdMatch = pathname.match(/^\/admin\/ads\/([^/]+)$/);
+    if (adminAdMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      await adService.deleteAd(BigInt(adminAdMatch[1]), user.id, true);
+
+      return json({
+        success: true,
+        message: 'Anuncio eliminado correctamente',
+      });
+    }
+
+    const adminCategoryMatch = pathname.match(/^\/admin\/categories\/([^/]+)$/);
+    if (adminCategoryMatch) {
+      const user = await requireAuthenticatedUser(request);
+      requireRole(user, 'admin');
+      const categoryId = BigInt(adminCategoryMatch[1]);
+      await adService.deleteCategory(categoryId);
+      await auditService.createAuditLog(
+        user.id,
+        'DELETE',
+        'Category',
+        categoryId,
+        'Categoria eliminada'
+      );
+
+      return json({
+        success: true,
+        message: 'Categoria eliminada correctamente',
       });
     }
 
@@ -1369,6 +1649,26 @@ function serializeNotification(notification: any) {
     type: notification.type,
     isRead: notification.isRead,
     createdAt: notification.createdAt,
+  };
+}
+
+function serializeAuditLog(log: any) {
+  return {
+    id: log.id.toString(),
+    userId: log.userId?.toString() || null,
+    action: log.action,
+    entityType: log.entityType,
+    entityId: log.entityId?.toString() || null,
+    details: log.details,
+    createdAt: log.createdAt,
+    ipAddress: log.ipAddress || null,
+    user: log.user
+      ? {
+          id: log.user.id.toString(),
+          fullName: log.user.fullName,
+          email: log.user.email,
+        }
+      : null,
   };
 }
 
