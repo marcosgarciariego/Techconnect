@@ -14,7 +14,9 @@ import {
 } from '../utils/validation';
 
 const router = Router();
-const applicationUploadDir = path.join(process.cwd(), 'public', 'uploads', 'applications');
+const applicationUploadDir = process.env.VERCEL
+  ? path.join('/tmp', 'techconnect', 'uploads', 'applications')
+  : path.join(process.cwd(), 'public', 'uploads', 'applications');
 
 fs.mkdirSync(applicationUploadDir, { recursive: true });
 

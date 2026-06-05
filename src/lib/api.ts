@@ -1,6 +1,6 @@
-const DEFAULT_API_URL = 'http://localhost:3001/api';
+const DEFAULT_API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:3001/api';
 const CONFIGURED_API_URL = import.meta.env.PUBLIC_API_URL || DEFAULT_API_URL;
-const DEFAULT_SOCKET_URL = 'http://localhost:3001';
+const DEFAULT_SOCKET_URL = import.meta.env.PROD ? '/' : 'http://localhost:3001';
 const CONFIGURED_SOCKET_URL = import.meta.env.PUBLIC_SOCKET_URL || DEFAULT_SOCKET_URL;
 
 interface ApiOptions extends RequestInit {
@@ -45,7 +45,7 @@ export async function api<T = any>(
     });
   } catch (error) {
     throw new ApiError(
-      'No se pudo conectar con la API. Comprueba que el servidor backend esté iniciado en el puerto 3001.',
+      'No se pudo conectar con la API. Comprueba que la URL de la API este configurada y que /api/health responda.',
       0,
       error
     );
@@ -95,7 +95,7 @@ function resolveHostAwareUrl(configuredUrl: string): string {
     const currentHostname = window.location.hostname;
 
     if (isLocalHostname(apiUrl.hostname) && !isLocalHostname(currentHostname)) {
-      apiUrl.hostname = currentHostname;
+      return normalizeApiUrl(apiUrl.pathname || '/api');
     }
 
     return normalizeApiUrl(apiUrl.toString());
