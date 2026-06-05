@@ -563,7 +563,10 @@ export const GET: APIRoute = async ({ request }) => {
 
       return json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          items: result.items.map(serializeAdminUser),
+        },
       });
     }
 
@@ -1393,6 +1396,19 @@ function serializeUser(user: any) {
           }
         : null,
     })),
+  };
+}
+
+function serializeAdminUser(user: any) {
+  return {
+    id: user.id.toString(),
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    city: user.city,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    roles: user.userRoles?.map((userRole: any) => userRole.role.name) || user.roles || [],
   };
 }
 
