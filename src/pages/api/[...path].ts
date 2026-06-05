@@ -1,10 +1,13 @@
 import type { APIRoute } from 'astro';
 import { Prisma, type Ad, type AdImage, type Category, type User } from '@prisma/client';
+import { parse as parseCookie } from 'cookie';
 import { ZodError } from 'zod';
 
 import * as adService from '../../../server/services/adService';
+import * as authService from '../../../server/services/authService';
 import { AppError } from '../../../server/middleware/errorHandler';
-import { adFiltersSchema } from '../../../server/utils/validation';
+import { verifyToken } from '../../../server/middleware/auth';
+import { adFiltersSchema, loginSchema, registerSchema } from '../../../server/utils/validation';
 
 export const prerender = false;
 
@@ -18,6 +21,64 @@ export const GET: APIRoute = async ({ request }) => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         databaseUrlConfigured: Boolean(process.env.DATABASE_URL),
+      });
+    }
+
+    if (pathname === '/auth/me') {
+      const user = await getAuthenticatedUser(request);
+
+      if (!user) {
+        return json({ success: false, error: 'No autorizado' }, 401);
+      }
+
+      return json({
+        success: true,
+        data: serializeUser(user),
+      });
+    }
+
+    if (pathname === '/auth/validate') {
+      const token = getRequestToken(request);
+
+      if (!token) {
+        return json({
+          success: true,
+          data: {
+            valid: false,
+            user: null,
+          },
+        });
+      }
+
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return json({
+          success: true,
+          data: {
+            valid: false,
+            user: null,
+          },
+        }, 200, { 'Set-Cookie': clearAuthCookie() });
+      }
+
+      const user = await authService.validateToken(BigInt(decoded.userId), decoded.email);
+
+      if (!user) {
+        return json({
+          success: true,
+          data: {
+            valid: false,
+            user: null,
+          },
+        }, 200, { 'Set-Cookie': clearAuthCookie() });
+      }
+
+      return json({
+        success: true,
+        data: {
+          valid: true,
+          user: serializeUser(user),
+        },
       });
     }
 
@@ -69,17 +130,118 @@ export const GET: APIRoute = async ({ request }) => {
   }
 };
 
+export const POST: APIRoute = async ({ request }) => {
+  try {
+    const url = new URL(request.url);
+    const pathname = normalizeApiPath(url.pathname);
+
+    if (pathname === '/auth/register') {
+      const data = registerSchema.parse(await readJsonBody(request));
+      const result = await authService.register(data);
+
+      return json({
+        success: true,
+        data: {
+          user: serializeUser(result.user),
+          token: result.token,
+        },
+      }, 201, { 'Set-Cookie': createAuthCookie(result.token) });
+    }
+
+    if (pathname === '/auth/login') {
+      const data = loginSchema.parse(await readJsonBody(request));
+      const result = await authService.login(data);
+
+      return json({
+        success: true,
+        data: {
+          user: serializeUser(result.user),
+          token: result.token,
+        },
+      }, 200, { 'Set-Cookie': createAuthCookie(result.token) });
+    }
+
+    if (pathname === '/auth/logout') {
+      return json({
+        success: true,
+        message: 'Sesion cerrada correctamente',
+      }, 200, { 'Set-Cookie': clearAuthCookie() });
+    }
+
+    return json({ success: false, error: 'Recurso no encontrado' }, 404);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
 function normalizeApiPath(pathname: string): string {
   return pathname.replace(/^\/api/, '') || '/';
 }
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
   return Response.json(data, {
     status,
     headers: {
+      ...headers,
       'Cache-Control': 'no-store',
     },
   });
+}
+
+async function readJsonBody(request: Request) {
+  try {
+    return await request.json();
+  } catch {
+    throw new AppError('El cuerpo de la peticion no es JSON valido', 400);
+  }
+}
+
+async function getAuthenticatedUser(request: Request) {
+  const token = getRequestToken(request);
+
+  if (!token) {
+    return null;
+  }
+
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return null;
+  }
+
+  return authService.validateToken(BigInt(decoded.userId), decoded.email);
+}
+
+function getRequestToken(request: Request): string | null {
+  const cookies = parseCookie(request.headers.get('cookie') || '');
+  const authHeader = request.headers.get('authorization');
+
+  return (
+    cookies.token ||
+    (authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null)
+  );
+}
+
+function createAuthCookie(token: string): string {
+  return [
+    `token=${token}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=604800',
+    process.env.NODE_ENV === 'production' ? 'Secure' : '',
+  ].filter(Boolean).join('; ');
+}
+
+function clearAuthCookie(): string {
+  return [
+    'token=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+    process.env.NODE_ENV === 'production' ? 'Secure' : '',
+  ].filter(Boolean).join('; ');
 }
 
 function handleApiError(error: unknown): Response {
@@ -179,6 +341,21 @@ function serializeCategory(category: Category) {
     id: category.id.toString(),
     name: category.name,
     description: category.description,
+  };
+}
+
+function serializeUser(user: any) {
+  return {
+    ...user,
+    id: user.id.toString(),
+    professionalProfile: user.professionalProfile
+      ? {
+          ...user.professionalProfile,
+          id: user.professionalProfile.id?.toString(),
+          userId: user.professionalProfile.userId?.toString(),
+          hourlyRate: user.professionalProfile.hourlyRate?.toString(),
+        }
+      : null,
   };
 }
 
